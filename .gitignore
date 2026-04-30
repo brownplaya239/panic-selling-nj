@@ -1,0 +1,28 @@
+# Environment variables (contains real secrets — never commit)
+.env
+
+# Dependencies
+node_modules/
+
+# Logs
+*.log
+
+# Zip archives
+*.zip
+
+# Accidental empty files
+'
+cd
+node
+python
+schtasks
+fix3.py
+console.error(e))
+
+# Misc
+test.txt
+poll.log
+*.pypython
+
+# Claude workspace
+.claude/

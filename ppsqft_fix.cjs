@@ -1,0 +1,10 @@
+var fs=require('fs'); 
+var h=fs.readFileSync('C:/panicselling-nj/index.html','utf8'); 
+var i=h.indexOf('const customTags'); 
+var old=h.slice(i,i+80); 
+var badge='var ppsqftBadge="";if(d.ppsqft>0){var rc="ppsqft-gray",rl="$"+d.ppsqft+"/sf";if(d.town_avg_ppsqft>0){var p=((d.ppsqft-d.town_avg_ppsqft)/d.town_avg_ppsqft)*100;if(p<=-10){rc="ppsqft-green";rl="$"+d.ppsqft+"/sf below avg";}else if(p>=10){rc="ppsqft-red";rl="$"+d.ppsqft+"/sf above avg";}else{rc="ppsqft-amber";rl="$"+d.ppsqft+"/sf ~avg";}}ppsqftBadge="<span class="+rc+">"+rl+"</span>";}';
+var nw=old+'\n    '+badge; 
+h=h.replace(old,nw); 
+h=h.replace('+ newTag + hotTag + domTag + customTags +','+ newTag + hotTag + domTag + customTags + (ppsqftBadge?" "+ppsqftBadge:"") +'); 
+fs.writeFileSync('C:/panicselling-nj/index.html',h,'utf8'); 
+console.log('done ppsqft:',h.includes('ppsqft')); 

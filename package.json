@@ -1,0 +1,17 @@
+{
+  "name": "panicselling-nj-backend",
+  "version": "1.0.0",
+  "description": "Price drop poller for Panic Selling NJ — Monmouth & Ocean County",
+  "type": "module",
+  "scripts": {
+    "poll":       "node poller.js",
+    "watch":      "node poller.js --watch",
+    "seed":       "node seed-mock.js",
+    "deploy-api": "supabase functions deploy drops-api"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "dotenv":                "^16.4.1",
+    "node-cron":             "^3.0.3"
+  }
+}
