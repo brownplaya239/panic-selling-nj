@@ -330,14 +330,24 @@ let currentArea = 'all';
 let currentType = 'all';
 let currentBed  = 'any';
 
-//  DATA LOADING 
+//  DATA LOADING
+const PAGE_SIZE = 1000;
+const MAX_ROWS  = 10000;
+
 async function loadDrops() {
   try {
-    const [b1,b2,b3,b4]=await Promise.all([sb.from('active_drops').select('*').order('drop_dollar',{ascending:false}).range(0,999),sb.from('active_drops').select('*').order('drop_dollar',{ascending:false}).range(1000,1999),sb.from('active_drops').select('*').order('drop_dollar',{ascending:false}).range(2000,2999),sb.from('active_drops').select('*').order('drop_dollar',{ascending:false}).range(3000,3999)]);
-    const data=[...(b1.data||[]),...(b2.data||[]),...(b3.data||[]),...(b4.data||[])];
-    const error=b1.error;
-    if (error) throw error;
-    allDrops = data || [];
+    const all = [];
+    for (let start = 0; start < MAX_ROWS; start += PAGE_SIZE) {
+      const { data, error } = await sb.from('active_drops')
+        .select('*')
+        .order('drop_dollar', { ascending: false })
+        .range(start, start + PAGE_SIZE - 1);
+      if (error) throw error;
+      if (!data || !data.length) break;
+      all.push(...data);
+      if (data.length < PAGE_SIZE) break;
+    }
+    allDrops = all;
     showDataBadge(true);
   } catch (err) {
     console.error('Supabase error:', err);
@@ -412,87 +422,153 @@ function timeAgo(iso) {
   return Math.floor(diff / 86400000) + 'd ago';
 }
 
-//  RENDER 
-function renderListings() {
+//  RENDER (virtualized)
+const DISPLAY_MAX = 1000;  // cap shown rows; users filter to narrow
+const BUFFER      = 6;
+const AD_INDEX    = 4;
+const AD_HEIGHT   = 72;
+let filteredData  = [];
+let totalFiltered = 0;
+let currentCurr   = 'usd';
+let _rowH         = 100;   // estimated; gets measured after first render
+let _rowHMeasured = false;
+
+function rowHTML(d, i, curr) {
+  const isConfirmed = d.drop_dollar > 0;
+  const dom = d.days_on_market || 0;
+  const typeClass = (d.property_type||'').includes('Single') ? 'tag-sf'
+                  : ['Condo','Townhouse','Condominium'].some(t=>(d.property_type||'').includes(t)) ? 'tag-condo'
+                  : (d.property_type||'').includes('Land') ? 'tag-land' : '';
+  const typeLabel = (d.property_type||'').includes('Single') ? 'SINGLE FAM'
+                  : (d.property_type||'').includes('Condo') ? 'CONDO'
+                  : (d.property_type||'').includes('Town') ? 'TOWNHOUSE'
+                  : (d.property_type||'').includes('Land') ? 'LAND' : d.property_type || 'RESIDENTIAL';
+  const bedsStr = d.bedrooms > 0 ? d.bedrooms + ' BD' : '';
+  const bathsStr = d.bathrooms ? d.bathrooms + ' BA' : '';
+  const sqftStr = d.sqft ? d.sqft.toLocaleString() + ' SF' : '';
+  const domTag = dom >= 60 ? '<span class="tag tag-longdom">'+dom+'D ON MKT</span>' : '';
+  const newTag = d.is_new_today ? '<span class="tag tag-new">NEW TODAY</span>' : '';
+  const hotTag = d.drop_pct >= 10 ? '<span class="tag tag-hot">[!] PRICE CUT</span>' : '';
+  const customTags = (d.tags || []).map(t => '<span class="tag">'+t+'</span>').join('');
+  let pb=''; if(d.ppsqft>0){let pr='ppsqft-gray',pl='$'+d.ppsqft+'/sf';if(d.town_avg_ppsqft>0){const pp=((d.ppsqft-d.town_avg_ppsqft)/d.town_avg_ppsqft)*100;if(pp<=-10){pr='ppsqft-green';pl='$'+d.ppsqft+'/sf (below avg)';}else if(pp>=10){pr='ppsqft-red';pl='$'+d.ppsqft+'/sf (above avg)';}else{pr='ppsqft-amber';pl='$'+d.ppsqft+'/sf (avg)';}}pb='<span class="ppsqft-badge '+pr+'">'+pl+'</span>';}
+  const imgHtml = d.photo_url ? '<img class="listing-photo" src="'+d.photo_url+'" alt="" loading="lazy" onerror="this.style.display=\'none\'">' : '';
+  const priceDisplay = isConfirmed
+    ? '<div class="price-current">' + fmtPrice(d.price_after, curr) + '</div><div class="price-meta"><span class="drop-amt">' + fmtDrop(d.drop_dollar, curr) + ' (' + parseFloat(d.drop_pct).toFixed(1) + '%) on ' + new Date(d.detected_at).toLocaleDateString('en-US',{month:'numeric',day:'numeric'}) + '</span></div><div class="price-meta" style="margin-top:2px"><span style="color:var(--text3)">was ' + fmtPrice(d.price_before, curr) + '</span></div>'
+    : '<div class="price-current">' + fmtPrice(d.price_after, curr) + '</div><div class="price-meta"><span style="color:var(--text3)">' + dom + ' days on market</span></div>';
+
+  return '<div class="listing-row' + (i===0?' hl':'') + '" onclick="openListing(\'' + (d.listing_url||'#') + '\',\'' + (d.mls_number||'') + '\',\'' + (d.address||'').replace(/'/g,'') + '\')">'
+    + '<div class="listing-num">#' + (i+1) + '</div>'
+    + '<div class="listing-body"><div class="listing-body-wrap">' + imgHtml + '<div>'
+    + '<div class="listing-title">' + (d.address||'') + '</div>'
+    + '<div class="listing-sub">'
+    + '<span class="sub-area">' + (d.city||'') + ' . ' + (d.county||'') + ' County</span>'
+    + (d.neighborhood ? ' <span>. ' + d.neighborhood + '</span>' : '')
+    + (bedsStr ? ' <span>. ' + bedsStr + '</span>' : '')
+    + (bathsStr ? ' <span>' + bathsStr + '</span>' : '')
+    + (sqftStr ? ' <span>. ' + sqftStr + '</span>' : '')
+    + ' <span>. ' + timeAgo(d.detected_at) + '</span>'
+    + '</div>'
+    + '<div class="listing-tags"><span class="tag ' + typeClass + '">' + typeLabel + '</span>' + newTag + hotTag + domTag + customTags + (pb ? ' ' + pb : '') + '</div>'
+    + '</div></div></div>'
+    + '<div class="listing-price">' + priceDisplay
+    + '<button class="btn-share" onclick="event.stopPropagation();share(\'' + (d.address||'').replace(/'/g,"\\'") + '\',' + (d.price_after||0) + ',' + (d.drop_dollar||0) + ')">> Share</button>'
+    + '</div></div>';
+}
+
+function adHTML() {
+  return '<div class="ad-card"><div></div><div>'
+    + '<div class="ad-title">These buyers need professionals they can trust</div>'
+    + '<div class="ad-sub">Thousands of buyers visit MOMLS Pricing Dashboard daily -- they need Monmouth &amp; Ocean County agents, attorneys, inspectors &amp; mortgage specialists. Limited verified spots.</div>'
+    + '</div><button class="btn-apply" onclick="alert(\'Professional applications opening soon!\')">Apply Now </button></div>';
+}
+
+function renderListings(resetScroll) {
   const curr = document.getElementById('currSelect').value;
-  const data = getFiltered();
-  const el   = document.getElementById('listings');
+  currentCurr = curr;
+  const all  = getFiltered();
+  totalFiltered = all.length;
+  filteredData  = all.slice(0, DISPLAY_MAX);
+  const data    = filteredData;
+  const el      = document.getElementById('listings');
 
   const confirmedCount = data.filter(d => d.drop_dollar > 0).length;
   const avgPct = confirmedCount ? (data.filter(d=>d.drop_pct>0).reduce((s,d)=>s+parseFloat(d.drop_pct),0)/confirmedCount).toFixed(1) : '0';
   const prices = data.map(d => d.price_after).filter(Boolean).sort((a,b)=>a-b);
   const med = prices[Math.floor(prices.length/2)] || 0;
 
-  document.getElementById('stat-drops').textContent = window.innerWidth < 600 ? confirmedCount+'/'+data.length : confirmedCount+' price drops / '+data.length;
+  document.getElementById('stat-drops').textContent = window.innerWidth < 600 ? confirmedCount+'/'+totalFiltered : confirmedCount+' price drops / '+totalFiltered;
   document.getElementById('stat-avg').textContent     = confirmedCount ? fmtDrop(Math.round(data.filter(d=>d.drop_dollar>0).reduce((s,d)=>s+d.drop_dollar,0)/confirmedCount), curr) : '--';
   document.getElementById('stat-watching').textContent = Math.floor(Math.random()*60)+160;
-  document.getElementById('m-drops').textContent      = data.length;
+  document.getElementById('m-drops').textContent      = totalFiltered;
   document.getElementById('m-avg').textContent        = avgPct + '%';
   document.getElementById('m-med').textContent        = med ? fmtM(med) : '--';
-  document.getElementById('tsText').textContent       = '> ' + data.length + ' LISTINGS . ' + new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}) + ' . LIVE MLS DATA';
+  document.getElementById('tsText').textContent       = '> ' + totalFiltered + ' LISTINGS . ' + new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}) + ' . LIVE MLS DATA';
 
   if (!data.length) {
     el.innerHTML = '<div class="loading">No listings match your current filters.</div>';
     return;
   }
 
-  let html = '';
-  data.forEach((d, i) => {
-    const isConfirmed = d.drop_dollar > 0;
-    const dom = d.days_on_market || 0;
-    const typeClass = (d.property_type||'').includes('Single') ? 'tag-sf'
-                    : ['Condo','Townhouse','Condominium'].some(t=>(d.property_type||'').includes(t)) ? 'tag-condo'
-                    : (d.property_type||'').includes('Land') ? 'tag-land' : '';
-    const typeLabel = (d.property_type||'').includes('Single') ? 'SINGLE FAM'
-                    : (d.property_type||'').includes('Condo') ? 'CONDO'
-                    : (d.property_type||'').includes('Town') ? 'TOWNHOUSE'
-                    : (d.property_type||'').includes('Land') ? 'LAND' : d.property_type || 'RESIDENTIAL';
+  // Rebuild container so stale state never persists across filter changes
+  const capNote = totalFiltered > DISPLAY_MAX
+    ? '<div style="padding:6px 16px;font-family:var(--mono);font-size:10px;color:var(--text3);border-bottom:1px solid var(--border)">Showing top '+DISPLAY_MAX.toLocaleString()+' of '+totalFiltered.toLocaleString()+' — use filters to narrow</div>'
+    : '';
+  el.innerHTML = capNote + '<div id="vContainer" style="position:relative"><div id="vRows" style="position:absolute;top:0;left:0;right:0;will-change:transform"></div></div>';
 
-    const bedsStr = d.bedrooms > 0 ? d.bedrooms + ' BD' : '';
-    const bathsStr = d.bathrooms ? d.bathrooms + ' BA' : '';
-    const sqftStr = d.sqft ? d.sqft.toLocaleString() + ' SF' : '';
-    const domTag = dom >= 180 ? '<span class="tag tag-longdom">'+dom+'D ON MKT</span>'
-                 : dom >= 90  ? '<span class="tag tag-longdom">'+dom+'D ON MKT</span>'
-                 : dom >= 60  ? '<span class="tag tag-longdom">'+dom+'D ON MKT</span>'
-                 : '';
-    const newTag  = d.is_new_today ? '<span class="tag tag-new">NEW TODAY</span>' : '';
-    const hotTag  = d.drop_pct >= 10 ? '<span class="tag tag-hot">[!] PRICE CUT</span>' : '';
-    const customTags = (d.tags || []).map(t => '<span class="tag">'+t+'</span>').join('');
-    var pb="";if(d.ppsqft>0){var pr="ppsqft-gray",pl="$"+d.ppsqft+"/sf";if(d.town_avg_ppsqft>0){var pp=((d.ppsqft-d.town_avg_ppsqft)/d.town_avg_ppsqft)*100;if(pp<=-10){pr="ppsqft-green";pl="$"+d.ppsqft+"/sf (below avg)";}else if(pp>=10){pr="ppsqft-red";pl="$"+d.ppsqft+"/sf (above avg)";}else{pr="ppsqft-amber";pl="$"+d.ppsqft+"/sf (avg)";}}pb="<span class=\"ppsqft-badge "+pr+"\">"+pl+"</span>";}
-    const imgHtml = d.photo_url ? '<img class="listing-photo" src="'+d.photo_url+'" alt="" loading="lazy" onerror="this.style.display=\'none\'">' : '';
-
-    const priceDisplay = isConfirmed
-      ? '<div class="price-current">' + fmtPrice(d.price_after, curr) + '</div><div class="price-meta"><span class="drop-amt">' + fmtDrop(d.drop_dollar, curr) + ' (' + parseFloat(d.drop_pct).toFixed(1) + '%) on ' + new Date(d.detected_at).toLocaleDateString('en-US',{month:'numeric',day:'numeric'}) + '</span></div><div class="price-meta" style="margin-top:2px"><span style="color:var(--text3)">was ' + fmtPrice(d.price_before, curr) + '</span></div>'
-      : '<div class="price-current">' + fmtPrice(d.price_after, curr) + '</div><div class="price-meta"><span style="color:var(--text3)">' + dom + ' days on market</span></div>';
-
-    html += '<div class="listing-row' + (i===0?' hl':'') + '" onclick="openListing(\'' + (d.listing_url||'#') + '\',\'' + (d.mls_number||'') + '\',\'' + (d.address||'').replace(/'/g,'') + '\')">'
-      + '<div class="listing-num">#' + (i+1) + '</div>'
-      + '<div class="listing-body"><div class="listing-body-wrap">' + imgHtml + '<div>'
-      + '<div class="listing-title">' + (d.address||'') + '</div>'
-      + '<div class="listing-sub">'
-      + '<span class="sub-area">' + (d.city||'') + ' . ' + (d.county||'') + ' County</span>'
-      + (d.neighborhood ? ' <span>. ' + d.neighborhood + '</span>' : '')
-      + (bedsStr ? ' <span>. ' + bedsStr + '</span>' : '')
-      + (bathsStr ? ' <span>' + bathsStr + '</span>' : '')
-      + (sqftStr ? ' <span>. ' + sqftStr + '</span>' : '')
-      + ' <span>. ' + timeAgo(d.detected_at) + '</span>'
-      + '</div>'
-      + '<div class="listing-tags"><span class="tag ' + typeClass + '">' + typeLabel + '</span>' + newTag + hotTag + domTag + customTags + (pb ? " " + pb : "") + "</div>"
-      + '</div></div></div>'
-      + '<div class="listing-price">' + priceDisplay
-      + '<button class="btn-share" onclick="event.stopPropagation();share(\'' + (d.address||'').replace(/'/g,"\\'") + '\',' + (d.price_after||0) + ',' + (d.drop_dollar||0) + ')">> Share</button>'
-      + '</div></div>';
-
-    if (i === 4) {
-      html += '<div class="ad-card"><div></div><div>'
-        + '<div class="ad-title">These buyers need professionals they can trust</div>'
-        + '<div class="ad-sub">Thousands of buyers visit MOMLS Pricing Dashboard daily -- they need Monmouth &amp; Ocean County agents, attorneys, inspectors &amp; mortgage specialists. Limited verified spots.</div>'
-        + '</div><button class="btn-apply" onclick="alert(\'Professional applications opening soon!\')">Apply Now </button></div>';
-    }
-  });
-
-  el.innerHTML = html;
+  if (resetScroll) window.scrollTo({ top: el.offsetTop - 10, behavior: 'auto' });
+  _rowHMeasured = false;
+  renderVisibleRows();
 }
+
+function renderVisibleRows() {
+  const data  = filteredData;
+  const total = data.length;
+  const rowsEl    = document.getElementById('vRows');
+  const container = document.getElementById('vContainer');
+  if (!rowsEl || !container || !total) return;
+
+  // Total virtual height: rows + one ad card inserted at AD_INDEX
+  const totalH = total * _rowH + (total > AD_INDEX ? AD_HEIGHT : 0);
+  container.style.height = totalH + 'px';
+
+  const listingsTop = document.getElementById('listings').getBoundingClientRect().top + window.scrollY;
+  const scrolled    = Math.max(0, window.scrollY - listingsTop);
+
+  const start = Math.max(0, Math.floor(scrolled / _rowH) - BUFFER);
+  const end   = Math.min(total, Math.ceil((scrolled + window.innerHeight) / _rowH) + BUFFER);
+
+  let html = '';
+  for (let i = start; i < end; i++) {
+    html += rowHTML(data[i], i, currentCurr);
+    if (i === AD_INDEX) html += adHTML();
+  }
+  rowsEl.style.transform = 'translateY(' + (start * _rowH) + 'px)';
+  rowsEl.innerHTML = html;
+
+  // Measure actual row height once and update total height
+  if (!_rowHMeasured) {
+    requestAnimationFrame(() => {
+      const r = rowsEl.querySelector('.listing-row');
+      if (r) {
+        const measured = r.getBoundingClientRect().height;
+        if (measured > 0) {
+          _rowH = measured;
+          _rowHMeasured = true;
+          container.style.height = (total * _rowH + (total > AD_INDEX ? AD_HEIGHT : 0)) + 'px';
+        }
+      }
+    });
+  }
+}
+
+let _rafScheduled = false;
+function _onScroll() {
+  if (_rafScheduled) return;
+  _rafScheduled = true;
+  requestAnimationFrame(() => { renderVisibleRows(); _rafScheduled = false; });
+}
+window.addEventListener('scroll', _onScroll, { passive: true });
+window.addEventListener('resize', _onScroll);
 
 function renderTicker() {
   const confirmed = allDrops.filter(d => d.drop_dollar > 0).slice(0, 15);
@@ -522,22 +598,21 @@ function setArea(city, label) {
   document.getElementById('bcCur').textContent = label;
   document.getElementById('headerArea').innerHTML = city==='all' ? 'Monmouth &amp; Ocean County' : label;
   renderAreaTabs();
-  renderListings();
+  renderListings(true);
 }
 function setType(btn, type) {
   currentType = type;
   document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  renderListings();
+  renderListings(true);
 }
 function setBed(btn, bed) {
   currentBed = bed;
   document.querySelectorAll('.bed-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  renderListings();
+  renderListings(true);
 }
 function applyFilters() {
-  // When county changes, repopulate town dropdown
   const county = document.getElementById('countySelect').value;
   const townEl = document.getElementById('townSelect');
   const prevTown = townEl.value;
@@ -550,7 +625,7 @@ function applyFilters() {
   townEl.innerHTML = '<option value="all" selected>All Towns</option>'
     + towns.map(t => '<option value="'+t+'"'+(t===prevTown?' selected':'')+'>'+t+'</option>').join('');
   if (!towns.includes(prevTown)) townEl.value = 'all';
-  renderListings();
+  renderListings(true);
 }
 
 function populateCountyDropdown(){
@@ -578,10 +653,14 @@ function share(addr, price, drop) {
   else { navigator.clipboard?.writeText(text); alert('Copied to clipboard!'); }
 }
 
+let _rtTimer = null;
 function subscribeRealtime() {
   sb.channel('price_drops')
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'price_drops' }, () => {
-      loadDrops().then(() => { renderTicker(); renderAreaTabs(); renderListings(); });
+      clearTimeout(_rtTimer);
+      _rtTimer = setTimeout(() => {
+        loadDrops().then(() => { renderTicker(); renderAreaTabs(); renderListings(); });
+      }, 2000);
     })
     .subscribe();
 }
