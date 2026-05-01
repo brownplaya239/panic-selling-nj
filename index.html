@@ -240,12 +240,11 @@
     <!-- DOM Filter -->
     <select class="filter-select" id="domSelect" onchange="applyFilters()">
       <option value="0">DOM: Any</option>
-      <option value="-7">New: &le;7 days</option>
-      <option value="30">DOM: 30+ days</option>
-      <option value="60">DOM: 60+ days</option>
-      <option value="90">DOM: 90+ days</option>
-      <option value="180">DOM: 6+ months</option>
-      <option value="365">DOM: 12+ months</option>
+      <option value="-7">New: &le;7D</option>
+      <option value="30-59">DOM: 30–59D</option>
+      <option value="60-89">DOM: 60–89D</option>
+      <option value="90-179">DOM: 90–179D</option>
+      <option value="180+">DOM: 180D+</option>
     </select>
     <!-- County Filter -->
     <select class="filter-select" id="countySelect" onchange="applyFilters()">
@@ -342,7 +341,7 @@ function showDataBadge(live) {
 //  FILTERING 
 function getFiltered() {
   const sort   = document.getElementById('sortSelect').value;
-  const dom    = parseInt(document.getElementById('domSelect').value) || 0;
+  const domVal = document.getElementById('domSelect').value;
   const county = document.getElementById('countySelect').value;
   const town   = document.getElementById('townSelect').value;
   let data = [...allDrops];
@@ -350,8 +349,11 @@ function getFiltered() {
   if (currentArea !== 'all')   data = data.filter(d => d.city === currentArea);
   if (county !== 'all')        data = data.filter(d => d.county === county);
   if (town !== 'all')          data = data.filter(d => d.city === town);
-  if (dom < 0)                 data = data.filter(d => (d.days_on_market || 0) <= Math.abs(dom));
-  else if (dom > 0)             data = data.filter(d => (d.days_on_market || 0) >= dom);
+  if      (domVal === '-7')    data = data.filter(d => (d.days_on_market||0) <= 7);
+  else if (domVal === '30-59') data = data.filter(d => (d.days_on_market||0) >= 30  && (d.days_on_market||0) <= 59);
+  else if (domVal === '60-89') data = data.filter(d => (d.days_on_market||0) >= 60  && (d.days_on_market||0) <= 89);
+  else if (domVal === '90-179')data = data.filter(d => (d.days_on_market||0) >= 90  && (d.days_on_market||0) <= 179);
+  else if (domVal === '180+')  data = data.filter(d => (d.days_on_market||0) >= 180);
   if (currentType === 'sf')        data = data.filter(d => d.property_type === 'Single Family' || d.property_type === 'Single Family Residence');
   if (currentType === 'condo')     data = data.filter(d => ['Condo','Townhouse','Condominium','Townhouse/Villa'].includes(d.property_type));
   if (currentType === 'land')      data = data.filter(d => (d.property_type||'').toLowerCase().includes('land') || (d.property_type||'').toLowerCase().includes('lot'));
@@ -651,8 +653,8 @@ function updateBreadcrumb() {
   if (county !== 'all') pills.push(county + ' Co.');
   if (town !== 'all')   pills.push(town);
   const dom = document.getElementById('domSelect').value;
-  const domLabels = {'-7':'≤7d',30:'30+ DOM',60:'60+ DOM',90:'90+ DOM',180:'6mo+',365:'12mo+'};
-  if (dom !== '0') pills.push(domLabels[dom] || dom+'d');
+  const domLabels = {'-7':'≤7D','30-59':'30-59D','60-89':'60-89D','90-179':'90-179D','180+':'180D+'};
+  if (dom !== '0') pills.push(domLabels[dom] || dom);
 
   const html = pills.map(p => '<span class="bc-pill">'+p+'</span>').join('')
     + (pills.length ? '<button class="bc-reset" onclick="resetFilters()">× Reset All</button>' : '');
