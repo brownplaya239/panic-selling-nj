@@ -421,13 +421,15 @@ let _rowHMeasured = false;
 function rowHTML(d, i) {
   const isConfirmed = d.drop_dollar > 0;
   const dom = d.days_on_market || 0;
-  const typeClass = (d.property_type||'').includes('Single') ? 'tag-sf'
-                  : ['Condo','Townhouse','Condominium'].some(t=>(d.property_type||'').includes(t)) ? 'tag-condo'
-                  : (d.property_type||'').includes('Land') ? 'tag-land' : '';
-  const typeLabel = (d.property_type||'').includes('Single') ? 'SINGLE FAM'
-                  : (d.property_type||'').includes('Condo') ? 'CONDO'
-                  : (d.property_type||'').includes('Town') ? 'TOWNHOUSE'
-                  : (d.property_type||'').includes('Land') ? 'LAND' : d.property_type || 'RESIDENTIAL';
+  const pt = (d.property_type||'').trim();
+  const typeClass = pt.includes('Single') ? 'tag-sf'
+                  : ['Condo','Townhouse','Condominium'].some(t=>pt.includes(t)) ? 'tag-condo'
+                  : pt.includes('Land') || pt.includes('Lot') ? 'tag-land' : '';
+  const typeLabel = pt.includes('Single') ? 'SINGLE FAM'
+                  : pt.includes('Condo') ? 'CONDO'
+                  : pt.includes('Town') ? 'TOWNHOUSE'
+                  : pt.includes('Land') || pt.includes('Lot') ? 'LAND'
+                  : pt.length > 2 ? pt.toUpperCase() : 'RESIDENTIAL';
   const bedsStr = d.bedrooms > 0 ? d.bedrooms + ' BD' : '';
   const bathsStr = d.bathrooms ? d.bathrooms + ' BA' : '';
   const sqftStr = d.sqft ? d.sqft.toLocaleString() + ' SF' : '';
@@ -457,8 +459,9 @@ function rowHTML(d, i) {
     + '<div class="listing-body"><div class="listing-body-wrap">' + imgHtml + '<div>'
     + '<div class="listing-title">' + (d.address||'') + '</div>'
     + '<div class="listing-sub">'
-    + '<span class="sub-area">' + (d.city||'') + ' . ' + (d.county||'') + ' County</span>'
-    + (d.neighborhood ? ' <span>. ' + d.neighborhood + '</span>' : '')
+    + '<span class="sub-area">' + (d.city||'')
+      + (d.county && d.county !== 'Unknown' ? ' . ' + d.county + ' County' : '') + '</span>'
+    + (d.neighborhood && d.neighborhood !== 'None' && d.neighborhood !== 'null' ? ' <span>. ' + d.neighborhood + '</span>' : '')
     + (bedsStr ? ' <span>. ' + bedsStr + '</span>' : '')
     + (bathsStr ? ' <span>' + bathsStr + '</span>' : '')
     + (sqftStr ? ' <span>. ' + sqftStr + '</span>' : '')
