@@ -96,6 +96,8 @@
   .bc-reset:hover{background:rgba(255,59,92,.1);}
 
   /* DROP HISTORY TOOLTIP */
+  .history-trigger{cursor:help;border-bottom:1px dashed rgba(255,59,92,.4);}
+  .history-trigger:hover{border-bottom-color:var(--red);}
   .drop-tooltip{position:absolute;z-index:500;background:var(--bg3);border:1px solid var(--border2);padding:10px 14px;font-family:var(--mono);font-size:10px;min-width:340px;box-shadow:0 8px 32px rgba(0,0,0,.5);pointer-events:none;}
   .dtt-header{color:var(--text3);letter-spacing:.08em;font-size:9px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;}
   .dtt-count{color:var(--accent);background:rgba(14,165,233,.1);padding:1px 7px;border:1px solid var(--accent2);border-radius:2px;}
@@ -427,10 +429,15 @@ function rowHTML(d, i) {
   const newTag = d.is_new_today ? '<span class="tag tag-new">NEW TODAY</span>' : '';
   const hotTag = d.drop_pct >= 10 ? '<span class="tag tag-hot">[!] PRICE CUT</span>' : '';
   const customTags = (d.tags || []).map(t => '<span class="tag">'+t+'</span>').join('');
-  let pb=''; if(d.ppsqft>0){let pr='ppsqft-gray',pl='$'+d.ppsqft+'/sf';if(d.town_avg_ppsqft>0){const pp=((d.ppsqft-d.town_avg_ppsqft)/d.town_avg_ppsqft)*100;if(pp<=-10){pr='ppsqft-green';pl='$'+d.ppsqft+'/sf (below avg)';}else if(pp>=10){pr='ppsqft-red';pl='$'+d.ppsqft+'/sf (above avg)';}else{pr='ppsqft-amber';pl='$'+d.ppsqft+'/sf (avg)';}}pb='<span class="ppsqft-badge '+pr+'" onmouseenter="showDropHistory(event,\''+d.id+'\')" onmouseleave="hideDropHistory()">'+pl+'</span>';}
+  let pb=''; if(d.ppsqft>0){let pr='ppsqft-gray',pl='$'+d.ppsqft+'/sf';if(d.town_avg_ppsqft>0){const pp=((d.ppsqft-d.town_avg_ppsqft)/d.town_avg_ppsqft)*100;if(pp<=-10){pr='ppsqft-green';pl='$'+d.ppsqft+'/sf (below avg)';}else if(pp>=10){pr='ppsqft-red';pl='$'+d.ppsqft+'/sf (above avg)';}else{pr='ppsqft-amber';pl='$'+d.ppsqft+'/sf (avg)';}}pb='<span class="ppsqft-badge '+pr+'">'+pl+'</span>';}
   const imgHtml = d.photo_url ? '<img class="listing-photo" src="'+d.photo_url+'" alt="" loading="lazy" onerror="this.style.display=\'none\'">' : '';
+  const lid = d.listing_id || '';
   const priceDisplay = isConfirmed
-    ? '<div class="price-current">' + fmtPrice(d.price_after) + '</div><div class="price-meta"><span class="drop-amt">' + fmtDrop(d.drop_dollar) + ' (' + parseFloat(d.drop_pct).toFixed(1) + '%) on ' + new Date(d.detected_at).toLocaleDateString('en-US',{month:'numeric',day:'numeric'}) + '</span></div><div class="price-meta" style="margin-top:2px"><span style="color:var(--text3)">was ' + fmtPrice(d.price_before) + '</span></div>'
+    ? '<div class="price-current">' + fmtPrice(d.price_after) + '</div>'
+      + '<div class="price-meta"><span class="drop-amt history-trigger" onmouseenter="showDropHistory(event,\''+lid+'\')" onmouseleave="hideDropHistory()">'
+      + fmtDrop(d.drop_dollar) + ' (' + parseFloat(d.drop_pct).toFixed(1) + '%) on ' + new Date(d.detected_at).toLocaleDateString('en-US',{month:'numeric',day:'numeric'})
+      + ' ▸</span></div>'
+      + '<div class="price-meta" style="margin-top:2px"><span style="color:var(--text3)">was ' + fmtPrice(d.price_before) + '</span></div>'
     : '<div class="price-current">' + fmtPrice(d.price_after) + '</div><div class="price-meta"><span style="color:var(--text3)">' + dom + ' days on market</span></div>';
 
   return '<div class="listing-row' + (i===0?' hl':'') + '" onclick="openListing(\'' + (d.listing_url||'#') + '\',\'' + (d.mls_number||'') + '\',\'' + (d.address||'').replace(/'/g,'') + '\')">'
