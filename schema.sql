@@ -114,7 +114,9 @@ SELECT
   l.latitude,
   l.longitude,
   -- Was this drop detected today?
-  (pd.detected_at::DATE = CURRENT_DATE) AS is_new_today
+  (pd.detected_at::DATE = CURRENT_DATE) AS is_new_today,
+  -- Total number of price drops this listing has had
+  (SELECT COUNT(*) FROM price_drops pd2 WHERE pd2.listing_id = pd.listing_id)::INTEGER AS drop_count
 FROM price_drops pd
 JOIN listings l ON l.id = pd.listing_id
 WHERE pd.is_active = TRUE
