@@ -104,8 +104,11 @@
   .dtt-total{display:grid;grid-template-columns:58px 1fr 64px 44px;gap:6px;padding:6px 0 0;color:var(--text);font-weight:600;}
   .dtt-total .dtt-drop{color:var(--red);}
 
-  /* DOM TAGS */
-  .tag-meddom{border-color:#2a253a;color:#818cf8;}
+  /* DOM BUCKET TAGS */
+  .tag-dom30{border-color:#2a253a;color:#818cf8;}   /* 30-59d  light purple  */
+  .tag-dom60{border-color:#312060;color:#a78bfa;}   /* 60-89d  medium purple */
+  .tag-dom90{border-color:#3a2a10;color:#f59e0b;}   /* 90-179d amber         */
+  .tag-dom180{border-color:#3a1a1a;color:#ff6b6b;}  /* 180d+   red           */
 
   /* LISTING ROW */
   .listing-row{display:grid;grid-template-columns:32px 1fr auto;align-items:center;border-bottom:1px solid var(--border);padding:0 16px;min-height:56px;cursor:pointer;transition:background .1s;}
@@ -123,7 +126,6 @@
   .tag-land{border-color:#3a2a1a;color:#f59e0b;}
   .tag-new{border-color:#3a3a1a;color:var(--yellow);}
   .tag-hot{border-color:#3a1a1a;color:#ff6b6b;}
-  .tag-longdom{border-color:#2a1a3a;color:#a78bfa;}
   .ppsqft-badge{display:inline-block;padding:2px 8px;border-radius:3px;font-size:9px;font-weight:600;white-space:nowrap;}
   .ppsqft-green{background:rgba(52,211,153,.15);border:1px solid #34d399;color:#34d399;}
   .ppsqft-amber{background:rgba(245,158,11,.15);border:1px solid #f59e0b;color:#f59e0b;}
@@ -413,8 +415,10 @@ function rowHTML(d, i) {
   const bedsStr = d.bedrooms > 0 ? d.bedrooms + ' BD' : '';
   const bathsStr = d.bathrooms ? d.bathrooms + ' BA' : '';
   const sqftStr = d.sqft ? d.sqft.toLocaleString() + ' SF' : '';
-  const domTag = dom >= 60 ? '<span class="tag tag-longdom">'+dom+'D ON MKT</span>'
-               : dom >= 30 ? '<span class="tag tag-meddom">'+dom+'D ON MKT</span>' : '';
+  const domTag = dom >= 180 ? '<span class="tag tag-dom180">180D+ MKT</span>'
+               : dom >= 90  ? '<span class="tag tag-dom90">90-179D MKT</span>'
+               : dom >= 60  ? '<span class="tag tag-dom60">60-89D MKT</span>'
+               : dom >= 30  ? '<span class="tag tag-dom30">30-59D MKT</span>' : '';
   const newTag = d.is_new_today ? '<span class="tag tag-new">NEW TODAY</span>' : '';
   const hotTag = d.drop_pct >= 10 ? '<span class="tag tag-hot">[!] PRICE CUT</span>' : '';
   const customTags = (d.tags || []).map(t => '<span class="tag">'+t+'</span>').join('');
