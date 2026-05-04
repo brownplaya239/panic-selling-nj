@@ -177,10 +177,10 @@
   /* MODE TOGGLE */
   .mode-toggle{padding:8px 16px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);background:var(--bg);}
   .mode-toggle-label{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:.1em;white-space:nowrap;}
-  .mode-btn{padding:5px 16px;font-family:var(--mono);font-size:10px;background:none;border:1px solid var(--border2);color:var(--text2);cursor:pointer;transition:all .15s;letter-spacing:.04em;}
-  .mode-btn:hover{border-color:var(--text3);color:var(--text);}
-  .mode-btn.active{border-color:var(--red);color:var(--red);background:rgba(255,59,92,.06);}
-  #modeBtnAll.active{border-color:var(--green);color:var(--green);background:rgba(52,211,153,.06);}
+  .mode-btn{padding:6px 18px;font-family:var(--mono);font-size:10px;background:none;border:1px solid var(--border2);color:var(--text3);cursor:pointer;transition:all .15s;letter-spacing:.05em;opacity:.7;}
+  .mode-btn:hover{border-color:var(--text3);color:var(--text);opacity:1;}
+  #modeBtnDrops.active{background:var(--red);border-color:var(--red);color:#fff;font-weight:600;opacity:1;}
+  #modeBtnAll.active{background:var(--green);border-color:var(--green);color:#0b0f1a;font-weight:600;opacity:1;}
 
   @media(max-width:600px){.brand-loc{display:none !important;}.topbar-stats .s-lbl{display:none;}.brand-name{font-size:10px !important;}.topbar-stats{gap:4px;}.s-val{font-size:10px !important;}.data-badge{display:none;}.topbar-stats div:nth-child(2){display:none;}}
   @media(max-width:768px){.brand-loc{display:none;}.topbar-stats .s-lbl{display:none;}}
@@ -234,7 +234,7 @@
 
 <!-- PAGE HEADER -->
 <div class="page-header">
-  <div class="page-title"><strong id="headerArea">Monmouth &amp; Ocean County</strong> Pricing Dashboard</div>
+  <div class="page-title"><strong id="headerArea">Monmouth &amp; Ocean County</strong> <span id="headerMode">Price Drop</span> Dashboard</div>
   <div class="page-metrics">
     <div><span class="m-val" id="m-drops">--</span>LISTINGS</div>
     <div><span class="m-val" id="m-avg">--</span>AVG DROP %</div>
@@ -527,6 +527,7 @@ function renderListings(resetScroll) {
     document.getElementById('m-avg').textContent          = med ? fmtM(med) : '--';
   }
   document.getElementById('m-med').textContent      = med ? fmtM(med) : '--';
+  document.getElementById('headerMode').textContent = currentMode === 'all' ? 'Active Listings' : 'Price Drop';
   document.getElementById('tsText').textContent     = '> ' + totalFiltered + ' LISTINGS . ' + new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}) + ' . LIVE MLS DATA';
 
   if (!data.length) {
@@ -694,7 +695,11 @@ function setMode(mode) {
   document.getElementById('headerArea').innerHTML = 'Monmouth &amp; Ocean County';
   document.querySelectorAll('.filter-btn').forEach((b,i) => b.classList.toggle('active', i===0));
   document.querySelectorAll('.bed-btn').forEach((b,i) => b.classList.toggle('active', i===0));
+  const btn = mode === 'all' ? document.getElementById('modeBtnAll') : document.getElementById('modeBtnDrops');
+  const origText = btn.textContent;
+  btn.textContent = '⏳ Loading...';
   loadDrops().then(() => {
+    btn.textContent = origText;
     populateCountyDropdown();
     populateTownDropdown();
     renderTicker();
