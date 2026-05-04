@@ -182,6 +182,67 @@
   #modeBtnDrops.active{background:var(--red);border-color:var(--red);color:#fff;font-weight:600;opacity:1;}
   #modeBtnAll.active{background:var(--green);border-color:var(--green);color:#0b0f1a;font-weight:600;opacity:1;}
 
+  /* SUBSCRIBE MODAL */
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(3px);}
+  .modal-box{background:var(--bg2);border:1px solid var(--border2);width:100%;max-width:560px;max-height:90vh;overflow-y:auto;position:relative;}
+  .modal-progress-wrap{height:3px;background:var(--border2);position:sticky;top:0;z-index:10;}
+  .modal-progress-fill{height:100%;background:var(--accent);transition:width .35s ease;width:0%;}
+  .modal-inner{padding:24px 24px 20px;}
+  .modal-close{position:absolute;top:10px;right:12px;background:none;border:none;color:var(--text3);font-size:22px;cursor:pointer;line-height:1;z-index:11;padding:4px 8px;}
+  .modal-close:hover{color:var(--text);}
+  .modal-step-num{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px;}
+  .modal-title{font-size:17px;font-weight:500;color:var(--text);margin-bottom:4px;}
+  .modal-sub{font-family:var(--mono);font-size:10px;color:var(--text3);margin-bottom:18px;line-height:1.5;}
+  .modal-field-label{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;margin:14px 0 6px;}
+  .modal-pills{display:flex;flex-wrap:wrap;gap:5px;}
+  .mpill{padding:5px 13px;font-family:var(--mono);font-size:10px;background:none;border:1px solid var(--border2);color:var(--text2);cursor:pointer;transition:all .12s;}
+  .mpill:hover{border-color:var(--text3);color:var(--text);}
+  .mpill.active{border-color:var(--accent);color:var(--accent);background:rgba(14,165,233,.08);}
+  .modal-town-scroll{border:1px solid var(--border);background:var(--bg);max-height:165px;overflow-y:auto;padding:6px 8px;}
+  .town-county-hdr{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:.08em;padding:6px 0 3px;border-bottom:1px solid var(--border);margin-bottom:3px;text-transform:uppercase;}
+  .town-county-hdr+.modal-town-grid{margin-bottom:4px;}
+  .modal-town-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;margin-bottom:6px;}
+  .modal-town-check{display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:10px;color:var(--text2);cursor:pointer;padding:4px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .modal-town-check:hover{color:var(--text);}
+  .modal-town-check input{accent-color:var(--accent);flex-shrink:0;}
+  .modal-link-btns{display:flex;gap:14px;margin-top:6px;}
+  .modal-link-btn{background:none;border:none;color:var(--accent);font-family:var(--mono);font-size:9px;cursor:pointer;padding:0;text-decoration:underline;opacity:.8;}
+  .modal-link-btn:hover{opacity:1;}
+  .modal-range-row{display:grid;grid-template-columns:1fr 18px 1fr;gap:8px;align-items:center;}
+  .modal-range-sep{color:var(--text3);font-family:var(--mono);font-size:11px;text-align:center;}
+  .modal-select{width:100%;background:var(--bg);border:1px solid var(--border2);color:var(--text2);font-family:var(--mono);font-size:10px;padding:7px 8px;outline:none;cursor:pointer;}
+  .modal-select:focus{border-color:var(--accent);}
+  .modal-feature-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:4px;max-height:160px;overflow-y:auto;}
+  .modal-feature-check{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:10px;color:var(--text2);cursor:pointer;padding:5px 8px;border:1px solid var(--border);background:var(--bg);}
+  .modal-feature-check:hover{border-color:var(--border2);color:var(--text);}
+  .modal-feature-check input{accent-color:var(--accent);}
+  .modal-input{width:100%;background:var(--bg);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:11px;padding:8px 10px;outline:none;}
+  .modal-input:focus{border-color:var(--accent);}
+  .modal-input::placeholder{color:var(--text3);}
+  .modal-consent{display:flex;align-items:flex-start;gap:10px;font-family:var(--mono);font-size:10px;color:var(--text3);line-height:1.5;margin-top:12px;cursor:pointer;}
+  .modal-consent input{accent-color:var(--accent);margin-top:2px;flex-shrink:0;}
+  .modal-err{font-family:var(--mono);font-size:9px;color:var(--red);min-height:14px;margin-top:4px;}
+  .modal-nav{display:flex;justify-content:space-between;align-items:center;margin-top:22px;padding-top:14px;border-top:1px solid var(--border);}
+  .modal-back-btn{background:none;border:1px solid var(--border2);color:var(--text3);font-family:var(--mono);font-size:10px;padding:6px 14px;cursor:pointer;transition:all .12s;}
+  .modal-back-btn:hover{border-color:var(--text2);color:var(--text);}
+  .modal-next-btn{background:var(--accent);border:1px solid var(--accent);color:#fff;font-family:var(--mono);font-size:10px;font-weight:600;padding:6px 18px;cursor:pointer;letter-spacing:.04em;transition:background .12s;}
+  .modal-next-btn:hover{background:var(--accent2);}
+  .modal-skip-btn{background:none;border:none;color:var(--text3);font-family:var(--mono);font-size:10px;cursor:pointer;text-decoration:underline;}
+  .modal-skip-btn:hover{color:var(--text2);}
+  .modal-success{text-align:center;padding:16px 0 8px;}
+  .modal-success-check{font-size:44px;margin-bottom:14px;color:var(--green);}
+  /* CONTEXTUAL ALERT CTA */
+  .alert-cta-bar{padding:7px 16px;background:rgba(14,165,233,.05);border-bottom:1px solid rgba(14,165,233,.15);display:flex;align-items:center;justify-content:space-between;gap:12px;}
+  .alert-cta-text{font-family:var(--mono);font-size:10px;color:var(--text2);}
+  .alert-cta-text strong{color:var(--cyan);}
+  .btn-alert-cta{padding:4px 12px;background:none;border:1px solid rgba(56,189,248,.4);color:var(--cyan);font-family:var(--mono);font-size:10px;cursor:pointer;white-space:nowrap;transition:all .12s;flex-shrink:0;}
+  .btn-alert-cta:hover{background:rgba(56,189,248,.08);}
+  /* AD CARD — ALERT SIGNUP */
+  .ad-alert-card{display:grid;grid-template-columns:36px 1fr auto;align-items:center;gap:12px;border-bottom:1px solid var(--border);padding:14px 16px;background:rgba(14,165,233,.03);border-left:2px solid var(--accent2);cursor:default;}
+  .ad-alert-icon{font-size:20px;text-align:center;}
+  .ad-alert-title{font-size:12px;font-weight:600;color:var(--text);margin-bottom:3px;}
+  .ad-alert-sub{font-size:10px;color:var(--text2);font-family:var(--mono);line-height:1.4;}
+
   @media(max-width:600px){.brand-loc{display:none !important;}.topbar-stats .s-lbl{display:none;}.brand-name{font-size:10px !important;}.topbar-stats{gap:4px;}.s-val{font-size:10px !important;}.data-badge{display:none;}.topbar-stats div:nth-child(2){display:none;}}
   @media(max-width:768px){.brand-loc{display:none;}.topbar-stats .s-lbl{display:none;}}
   ::-webkit-scrollbar{width:4px;height:4px;}
@@ -230,6 +291,12 @@
   <span onclick="setArea('all','All Areas')">NJ</span> >
   <span class="cur" id="bcCur">All Areas</span>
   <span id="bcFilters"></span>
+</div>
+
+<!-- CONTEXTUAL ALERT CTA -->
+<div id="alertCtaBar" class="alert-cta-bar" style="display:none">
+  <span class="alert-cta-text">🔔 Watching <strong id="ctaCity">this area</strong>? Get emailed the moment a home drops in price here.</span>
+  <button class="btn-alert-cta" onclick="openSubscribeModal()">Get Free Alerts →</button>
 </div>
 
 <!-- PAGE HEADER -->
@@ -314,6 +381,224 @@
 
 <!-- TOOLTIP (drop history) -->
 <div id="dropTooltip" class="drop-tooltip" style="display:none"></div>
+
+<!-- SUBSCRIBE MODAL -->
+<div id="subscribeModal" class="modal-overlay" style="display:none" onclick="closeModalOutside(event)">
+  <div class="modal-box">
+    <div class="modal-progress-wrap"><div class="modal-progress-fill" id="modalProgressFill"></div></div>
+    <button class="modal-close" onclick="closeSubscribeModal()">×</button>
+    <div class="modal-inner">
+
+      <!-- STEP 1: LOCATION -->
+      <div class="modal-step" id="mStep1">
+        <div class="modal-step-num">Step 1 of 6 — Location</div>
+        <div class="modal-title">Where are you searching?</div>
+        <div class="modal-sub">Pick counties and/or specific towns. Leave towns blank to watch all towns in a county.</div>
+        <div class="modal-field-label">County</div>
+        <div class="modal-pills">
+          <button class="mpill county-pill" data-val="Monmouth" onclick="toggleCounty(this)">Monmouth</button>
+          <button class="mpill county-pill" data-val="Ocean" onclick="toggleCounty(this)">Ocean</button>
+        </div>
+        <div class="modal-field-label">Specific Towns <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text3)">(optional)</span></div>
+        <div class="modal-town-scroll"><div id="townCheckboxWrap"><span style="color:var(--text3);font-family:var(--mono);font-size:10px">Select a county above to load towns</span></div></div>
+        <div class="modal-link-btns">
+          <button class="modal-link-btn" onclick="selectAllTowns('Monmouth')">All Monmouth</button>
+          <button class="modal-link-btn" onclick="selectAllTowns('Ocean')">All Ocean</button>
+          <button class="modal-link-btn" onclick="clearAllTowns()">Clear</button>
+        </div>
+        <div class="modal-err" id="stepErr1"></div>
+        <div class="modal-nav"><div></div><button class="modal-next-btn" onclick="goStep(2)">Next →</button></div>
+      </div>
+
+      <!-- STEP 2: PROPERTY TYPE / BEDS / BATHS -->
+      <div class="modal-step" id="mStep2" style="display:none">
+        <div class="modal-step-num">Step 2 of 6 — Property</div>
+        <div class="modal-title">What type of home?</div>
+        <div class="modal-sub">All fields default to "Any" — only fill in what matters to you.</div>
+        <div class="modal-field-label">Property Type</div>
+        <div class="modal-pills">
+          <button class="mpill active" data-val="any" onclick="selectPill(this,'propertyType')">Any</button>
+          <button class="mpill" data-val="Single Family" onclick="selectPill(this,'propertyType')">Single Family</button>
+          <button class="mpill" data-val="Condo" onclick="selectPill(this,'propertyType')">Condo / TH</button>
+          <button class="mpill" data-val="Multi Family" onclick="selectPill(this,'propertyType')">Multi Family</button>
+          <button class="mpill" data-val="Land" onclick="selectPill(this,'propertyType')">Land</button>
+        </div>
+        <div class="modal-field-label">Min Bedrooms</div>
+        <div class="modal-pills">
+          <button class="mpill active" data-val="any" onclick="selectPill(this,'minBeds')">Any</button>
+          <button class="mpill" data-val="1" onclick="selectPill(this,'minBeds')">1+</button>
+          <button class="mpill" data-val="2" onclick="selectPill(this,'minBeds')">2+</button>
+          <button class="mpill" data-val="3" onclick="selectPill(this,'minBeds')">3+</button>
+          <button class="mpill" data-val="4" onclick="selectPill(this,'minBeds')">4+</button>
+          <button class="mpill" data-val="5" onclick="selectPill(this,'minBeds')">5+</button>
+        </div>
+        <div class="modal-field-label">Min Bathrooms</div>
+        <div class="modal-pills">
+          <button class="mpill active" data-val="any" onclick="selectPill(this,'minBaths')">Any</button>
+          <button class="mpill" data-val="1" onclick="selectPill(this,'minBaths')">1+</button>
+          <button class="mpill" data-val="1.5" onclick="selectPill(this,'minBaths')">1.5+</button>
+          <button class="mpill" data-val="2" onclick="selectPill(this,'minBaths')">2+</button>
+          <button class="mpill" data-val="2.5" onclick="selectPill(this,'minBaths')">2.5+</button>
+          <button class="mpill" data-val="3" onclick="selectPill(this,'minBaths')">3+</button>
+        </div>
+        <div class="modal-nav">
+          <button class="modal-back-btn" onclick="goStep(1)">← Back</button>
+          <button class="modal-next-btn" onclick="goStep(3)">Next →</button>
+        </div>
+      </div>
+
+      <!-- STEP 3: BUDGET & SIZE -->
+      <div class="modal-step" id="mStep3" style="display:none">
+        <div class="modal-step-num">Step 3 of 6 — Budget & Size</div>
+        <div class="modal-title">What's your price & size range?</div>
+        <div class="modal-sub">Leave at defaults to get alerts for any price or size.</div>
+        <div class="modal-field-label">Price Range</div>
+        <div class="modal-range-row">
+          <select class="modal-select" id="subMinPrice" onchange="_sub.minPrice=+this.value||null">
+            <option value="0">No min</option>
+            <option value="100000">$100K</option>
+            <option value="200000">$200K</option>
+            <option value="300000">$300K</option>
+            <option value="400000">$400K</option>
+            <option value="500000">$500K</option>
+            <option value="600000">$600K</option>
+            <option value="750000">$750K</option>
+            <option value="1000000">$1M</option>
+            <option value="1500000">$1.5M</option>
+          </select>
+          <div class="modal-range-sep">—</div>
+          <select class="modal-select" id="subMaxPrice" onchange="_sub.maxPrice=+this.value||null">
+            <option value="0">No max</option>
+            <option value="200000">$200K</option>
+            <option value="300000">$300K</option>
+            <option value="400000">$400K</option>
+            <option value="500000">$500K</option>
+            <option value="600000">$600K</option>
+            <option value="750000">$750K</option>
+            <option value="1000000">$1M</option>
+            <option value="1500000">$1.5M</option>
+            <option value="2000000">$2M</option>
+            <option value="3000000">$3M+</option>
+          </select>
+        </div>
+        <div class="modal-field-label" style="margin-top:14px">Square Footage Range</div>
+        <div class="modal-range-row">
+          <select class="modal-select" id="subMinSqft" onchange="_sub.minSqft=+this.value||null">
+            <option value="0">No min</option>
+            <option value="500">500 SF</option>
+            <option value="750">750 SF</option>
+            <option value="1000">1,000 SF</option>
+            <option value="1250">1,250 SF</option>
+            <option value="1500">1,500 SF</option>
+            <option value="2000">2,000 SF</option>
+            <option value="2500">2,500 SF</option>
+            <option value="3000">3,000 SF</option>
+          </select>
+          <div class="modal-range-sep">—</div>
+          <select class="modal-select" id="subMaxSqft" onchange="_sub.maxSqft=+this.value||null">
+            <option value="0">No max</option>
+            <option value="1000">1,000 SF</option>
+            <option value="1500">1,500 SF</option>
+            <option value="2000">2,000 SF</option>
+            <option value="2500">2,500 SF</option>
+            <option value="3000">3,000 SF</option>
+            <option value="4000">4,000 SF</option>
+            <option value="5000">5,000+ SF</option>
+          </select>
+        </div>
+        <div class="modal-err" id="stepErr3"></div>
+        <div class="modal-nav">
+          <button class="modal-back-btn" onclick="goStep(2)">← Back</button>
+          <button class="modal-next-btn" onclick="goStep(4)">Next →</button>
+        </div>
+      </div>
+
+      <!-- STEP 4: MUST-HAVES (skippable) -->
+      <div class="modal-step" id="mStep4" style="display:none">
+        <div class="modal-step-num">Step 4 of 6 — Must-Haves</div>
+        <div class="modal-title">Any must-have features?</div>
+        <div class="modal-sub">Optional — skip if you don't need specific amenities.</div>
+        <div class="modal-field-label">Features</div>
+        <div class="modal-feature-grid" id="featureCheckboxes"><span style="color:var(--text3);font-family:var(--mono);font-size:10px">Loading...</span></div>
+        <div class="modal-field-label" style="margin-top:14px">Max Days on Market</div>
+        <div class="modal-pills">
+          <button class="mpill active" data-val="0" onclick="selectPill(this,'maxDom')">Any</button>
+          <button class="mpill" data-val="30" onclick="selectPill(this,'maxDom')">≤30D</button>
+          <button class="mpill" data-val="60" onclick="selectPill(this,'maxDom')">≤60D</button>
+          <button class="mpill" data-val="90" onclick="selectPill(this,'maxDom')">≤90D</button>
+          <button class="mpill" data-val="180" onclick="selectPill(this,'maxDom')">≤180D</button>
+        </div>
+        <div class="modal-nav">
+          <button class="modal-back-btn" onclick="goStep(3)">← Back</button>
+          <div style="display:flex;gap:14px;align-items:center">
+            <button class="modal-skip-btn" onclick="goStep(5)">Skip</button>
+            <button class="modal-next-btn" onclick="goStep(5)">Next →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 5: ALERT PREFERENCES -->
+      <div class="modal-step" id="mStep5" style="display:none">
+        <div class="modal-step-num">Step 5 of 6 — Alert Settings</div>
+        <div class="modal-title">How do you want to be alerted?</div>
+        <div class="modal-sub">Choose what triggers an alert and how often you hear from us.</div>
+        <div class="modal-field-label">Alert Me On</div>
+        <div class="modal-pills">
+          <button class="mpill active" data-val="drops" onclick="selectPill(this,'alertOn')">Price Drops Only</button>
+          <button class="mpill" data-val="all" onclick="selectPill(this,'alertOn')">New Listings Too</button>
+        </div>
+        <div class="modal-field-label">Minimum Drop Size to Notify</div>
+        <div class="modal-pills">
+          <button class="mpill active" data-val="1" onclick="selectPill(this,'minDropPct')">Any drop</button>
+          <button class="mpill" data-val="2" onclick="selectPill(this,'minDropPct')">2%+</button>
+          <button class="mpill" data-val="5" onclick="selectPill(this,'minDropPct')">5%+</button>
+          <button class="mpill" data-val="10" onclick="selectPill(this,'minDropPct')">10%+</button>
+        </div>
+        <div class="modal-field-label">Frequency</div>
+        <div class="modal-pills">
+          <button class="mpill active" data-val="instant" onclick="selectPill(this,'frequency')">Instant — as it happens</button>
+          <button class="mpill" data-val="weekly" onclick="selectPill(this,'frequency')">Weekly digest — Sundays</button>
+        </div>
+        <div class="modal-nav">
+          <button class="modal-back-btn" onclick="goStep(4)">← Back</button>
+          <button class="modal-next-btn" onclick="goStep(6)">Next →</button>
+        </div>
+      </div>
+
+      <!-- STEP 6: CONTACT INFO -->
+      <div class="modal-step" id="mStep6" style="display:none">
+        <div class="modal-step-num">Step 6 of 6 — Your Info</div>
+        <div class="modal-title">Where should we send alerts?</div>
+        <div class="modal-sub">Free forever. One-click unsubscribe in every email.</div>
+        <div class="modal-field-label">First Name <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></div>
+        <input class="modal-input" id="subName" type="text" placeholder="e.g. Alex" autocomplete="given-name">
+        <div class="modal-field-label" style="margin-top:12px">Email Address</div>
+        <input class="modal-input" id="subEmail" type="email" placeholder="your@email.com" autocomplete="email">
+        <div class="modal-err" id="subEmailErr"></div>
+        <label class="modal-consent">
+          <input type="checkbox" id="subConsent">
+          I agree to receive email alerts from MOMLS Pricing Dashboard. Unsubscribe anytime.
+        </label>
+        <div class="modal-err" id="subConsentErr"></div>
+        <div class="modal-nav">
+          <button class="modal-back-btn" onclick="goStep(5)">← Back</button>
+          <button class="modal-next-btn" id="subSubmitBtn" onclick="submitSubscriber()">Get My Alerts →</button>
+        </div>
+      </div>
+
+      <!-- SUCCESS -->
+      <div class="modal-step modal-success" id="mStepDone" style="display:none">
+        <div class="modal-success-check">✓</div>
+        <div class="modal-title" style="text-align:center">You're subscribed!</div>
+        <p class="modal-sub" style="text-align:center;margin-top:8px" id="subSuccessMsg">We'll email you when homes matching your criteria drop in price.</p>
+        <div style="text-align:center;margin-top:20px">
+          <button class="modal-next-btn" onclick="closeSubscribeModal()">Back to Listings</button>
+        </div>
+      </div>
+
+    </div><!-- /modal-inner -->
+  </div><!-- /modal-box -->
+</div><!-- /subscribeModal -->
 
 <script>
 const SUPABASE_URL      = 'https://ynndoetrygfukebjumuv.supabase.co';
@@ -493,10 +778,13 @@ function rowHTML(d, i) {
 }
 
 function adHTML() {
-  return '<div class="ad-card"><div></div><div>'
-    + '<div class="ad-title">These buyers need professionals they can trust</div>'
-    + '<div class="ad-sub">Thousands of buyers visit MOMLS Pricing Dashboard daily -- they need Monmouth &amp; Ocean County agents, attorneys, inspectors &amp; mortgage specialists. Limited verified spots.</div>'
-    + '</div><button class="btn-apply" onclick="alert(\'Professional applications opening soon!\')">Apply Now </button></div>';
+  return '<div class="ad-alert-card">'
+    + '<div class="ad-alert-icon">🔔</div>'
+    + '<div><div class="ad-alert-title">Get Free Price Drop Alerts</div>'
+    + '<div class="ad-alert-sub">Tell us what you\'re looking for — get emailed the moment a match drops in Monmouth or Ocean County. Free, no spam, unsubscribe anytime.</div>'
+    + '</div>'
+    + '<button class="btn-apply" onclick="event.stopPropagation();openSubscribeModal()">Set Up Alerts →</button>'
+    + '</div>';
 }
 
 function renderListings(resetScroll) {
@@ -624,6 +912,14 @@ function setArea(city, label) {
   currentArea = city;
   document.getElementById('bcCur').textContent = label;
   document.getElementById('headerArea').innerHTML = city==='all' ? 'Monmouth &amp; Ocean County' : label;
+  // Contextual alert CTA
+  const ctaBar = document.getElementById('alertCtaBar');
+  if (city !== 'all') {
+    document.getElementById('ctaCity').textContent = label;
+    ctaBar.style.display = 'flex';
+  } else {
+    ctaBar.style.display = 'none';
+  }
   renderAreaTabs();
   renderListings(true);
 }
@@ -721,6 +1017,7 @@ function resetFilters() {
   document.getElementById('headerArea').innerHTML = 'Monmouth &amp; Ocean County';
   document.querySelectorAll('.filter-btn').forEach((b,i) => b.classList.toggle('active', i===0));
   document.querySelectorAll('.bed-btn').forEach((b,i) => b.classList.toggle('active', i===0));
+  document.getElementById('alertCtaBar').style.display = 'none';
   renderAreaTabs();
   renderListings(true);
 }
@@ -805,6 +1102,228 @@ function subscribeRealtime() {
     .subscribe();
 }
 
+// ── SUBSCRIBER MODAL ─────────────────────────────────────────────────────────
+let _sub = {};
+let _currentStep = 1;
+
+function _resetSub() {
+  _sub = { counties:[], towns:[], propertyType:'any', minBeds:null, minBaths:null,
+           minPrice:null, maxPrice:null, minSqft:null, maxSqft:null, features:[],
+           maxDom:null, alertOn:'drops', minDropPct:1, frequency:'instant' };
+}
+
+function openSubscribeModal(prefillCity) {
+  _resetSub();
+  // Pre-fill from active filters
+  const county = document.getElementById('countySelect').value;
+  if (county !== 'all') _sub.counties = [county];
+  if (currentArea !== 'all') _sub.towns = [currentArea];
+  if (prefillCity) _sub.towns = [prefillCity];
+  if (currentType === 'sf')    _sub.propertyType = 'Single Family';
+  else if (currentType === 'condo') _sub.propertyType = 'Condo';
+  if (currentBed !== 'any') _sub.minBeds = currentBed === '6+' ? 6 : parseInt(currentBed);
+  document.getElementById('subscribeModal').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+  _currentStep = 0;
+  goStep(1);
+}
+
+function closeSubscribeModal() {
+  document.getElementById('subscribeModal').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+function closeModalOutside(e) {
+  if (e.target.id === 'subscribeModal') closeSubscribeModal();
+}
+
+function goStep(n) {
+  // Validate before advancing
+  if (typeof n === 'number' && n > _currentStep && !validateStep(_currentStep)) return;
+  document.querySelectorAll('.modal-step').forEach(s => s.style.display = 'none');
+  const el = n === 'done' ? document.getElementById('mStepDone') : document.getElementById('mStep' + n);
+  if (el) el.style.display = 'block';
+  if (n === 'done') {
+    document.getElementById('modalProgressFill').style.width = '100%';
+    return;
+  }
+  _currentStep = n;
+  document.getElementById('modalProgressFill').style.width = (((n - 1) / 6) * 100) + '%';
+  if (n === 1) { buildTownCheckboxes(); restoreCountyPills(); }
+  if (n === 4) buildFeatureCheckboxes();
+}
+
+function validateStep(n) {
+  if (n === 1) {
+    const e = document.getElementById('stepErr1');
+    if (!_sub.counties.length) { e.textContent = 'Please select at least one county.'; return false; }
+    e.textContent = '';
+  }
+  if (n === 3) {
+    const e = document.getElementById('stepErr3');
+    if (_sub.minPrice && _sub.maxPrice && _sub.minPrice > _sub.maxPrice) { e.textContent = 'Min price cannot exceed max price.'; return false; }
+    if (_sub.minSqft  && _sub.maxSqft  && _sub.minSqft  > _sub.maxSqft)  { e.textContent = 'Min sqft cannot exceed max sqft.';  return false; }
+    e.textContent = '';
+  }
+  return true;
+}
+
+// County — multi-toggle
+function toggleCounty(btn) {
+  btn.classList.toggle('active');
+  _sub.counties = [...document.querySelectorAll('.county-pill.active')].map(b => b.dataset.val);
+  buildTownCheckboxes();
+}
+
+function restoreCountyPills() {
+  document.querySelectorAll('.county-pill').forEach(b => b.classList.toggle('active', _sub.counties.includes(b.dataset.val)));
+}
+
+// Single-select pills
+function selectPill(btn, key) {
+  btn.closest('.modal-pills').querySelectorAll('.mpill').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const val = btn.dataset.val;
+  if (val === 'any' || val === '0') {
+    _sub[key] = (key === 'minDropPct') ? 1 : null;
+  } else if (['minBeds','maxDom'].includes(key)) {
+    _sub[key] = parseInt(val);
+  } else if (['minBaths','minDropPct'].includes(key)) {
+    _sub[key] = parseFloat(val);
+  } else {
+    _sub[key] = val;
+  }
+}
+
+// Town checkboxes — built from allDrops in memory
+function buildTownCheckboxes() {
+  const grouped = {};
+  allDrops.forEach(d => {
+    if (!d.city || !d.county) return;
+    const co = ['Monmouth','Ocean'].includes(d.county) ? d.county : null;
+    if (!co || (_sub.counties.length && !_sub.counties.includes(co))) return;
+    if (!grouped[co]) grouped[co] = new Set();
+    grouped[co].add(d.city);
+  });
+  let html = '';
+  ['Monmouth','Ocean'].forEach(co => {
+    if (!grouped[co]) return;
+    const towns = [...grouped[co]].sort();
+    html += '<div class="town-county-hdr">' + co + ' County</div><div class="modal-town-grid">';
+    towns.forEach(town => {
+      const chk = _sub.towns.includes(town) ? ' checked' : '';
+      html += '<label class="modal-town-check"><input type="checkbox" value="' + town + '" data-county="' + co + '"' + chk + ' onchange="updateTownSel()"> ' + town + '</label>';
+    });
+    html += '</div>';
+  });
+  document.getElementById('townCheckboxWrap').innerHTML = html || '<span style="color:var(--text3);font-family:var(--mono);font-size:10px">Select a county above to load towns.</span>';
+}
+
+function updateTownSel() {
+  _sub.towns = [...document.querySelectorAll('#townCheckboxWrap input:checked')].map(el => el.value);
+}
+
+function selectAllTowns(county) {
+  document.querySelectorAll('#townCheckboxWrap input[data-county="' + county + '"]').forEach(el => el.checked = true);
+  updateTownSel();
+}
+
+function clearAllTowns() {
+  document.querySelectorAll('#townCheckboxWrap input').forEach(el => el.checked = false);
+  _sub.towns = [];
+}
+
+// Feature checkboxes — pulled from tags in allDrops
+function buildFeatureCheckboxes() {
+  const tags = [...new Set((allDrops||[]).flatMap(d => d.tags||[]).filter(Boolean))].sort();
+  const el = document.getElementById('featureCheckboxes');
+  if (!tags.length) { el.innerHTML = '<span style="color:var(--text3);font-family:var(--mono);font-size:10px">No feature data available in current listings.</span>'; return; }
+  el.innerHTML = tags.map(t => {
+    const chk = _sub.features.includes(t) ? ' checked' : '';
+    return '<label class="modal-feature-check"><input type="checkbox" value="' + t + '"' + chk + ' onchange="updateFeatureSel()"> ' + t + '</label>';
+  }).join('');
+}
+
+function updateFeatureSel() {
+  _sub.features = [...document.querySelectorAll('#featureCheckboxes input:checked')].map(el => el.value);
+}
+
+// Submit to Supabase
+async function submitSubscriber() {
+  const email   = document.getElementById('subEmail').value.trim();
+  const name    = document.getElementById('subName').value.trim();
+  const consent = document.getElementById('subConsent').checked;
+  document.getElementById('subEmailErr').textContent    = '';
+  document.getElementById('subConsentErr').textContent  = '';
+
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    document.getElementById('subEmailErr').textContent = 'Please enter a valid email address.';
+    return;
+  }
+  if (!consent) {
+    document.getElementById('subConsentErr').textContent = 'Please check the box to agree.';
+    return;
+  }
+
+  const btn = document.getElementById('subSubmitBtn');
+  btn.textContent = 'Saving...';
+  btn.disabled = true;
+
+  const payload = {
+    email,
+    name:           name || null,
+    counties:       _sub.counties.length  ? _sub.counties       : null,
+    towns:          _sub.towns.length     ? _sub.towns          : null,
+    property_types: _sub.propertyType !== 'any' ? [_sub.propertyType] : null,
+    min_beds:       _sub.minBeds   || null,
+    min_baths:      _sub.minBaths  || null,
+    min_price:      _sub.minPrice  || null,
+    max_price:      _sub.maxPrice  || null,
+    min_sqft:       _sub.minSqft   || null,
+    max_sqft:       _sub.maxSqft   || null,
+    min_drop_pct:   _sub.minDropPct,
+    features:       _sub.features.length  ? _sub.features        : null,
+    max_dom:        _sub.maxDom    || null,
+    alert_on:       _sub.alertOn,
+    frequency:      _sub.frequency,
+  };
+
+  const { error } = await sb.from('subscribers').insert(payload);
+
+  if (error) {
+    btn.textContent = 'Get My Alerts →';
+    btn.disabled = false;
+    document.getElementById('subEmailErr').textContent = error.code === '23505'
+      ? 'This email is already subscribed! Check your inbox.'
+      : 'Something went wrong — please try again.';
+    return;
+  }
+
+  const loc = _sub.towns.length
+    ? _sub.towns.slice(0,3).join(', ') + (_sub.towns.length > 3 ? ' & more' : '')
+    : (_sub.counties.join(' & ') || 'Monmouth & Ocean County') + ' County';
+  document.getElementById('subSuccessMsg').textContent =
+    'We\'ll email you at ' + email + ' when homes matching your criteria drop in price in ' + loc + '.';
+  goStep('done');
+}
+
+// Unsubscribe handler (checks URL ?unsub=TOKEN on page load)
+async function handleUnsubscribe(token) {
+  const { error } = await sb.rpc('unsubscribe', { token });
+  const bar = document.createElement('div');
+  bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;padding:12px 20px;font-family:var(--mono);font-size:11px;text-align:center;border-bottom:2px solid;';
+  if (error) {
+    bar.style.background = '#1a0a0a'; bar.style.color = 'var(--red)'; bar.style.borderColor = 'var(--red)';
+    bar.textContent = 'Could not process unsubscribe request. Please try again.';
+  } else {
+    bar.style.background = '#0a1a0a'; bar.style.color = '#34d399'; bar.style.borderColor = '#34d399';
+    bar.textContent = '✓ You\'ve been unsubscribed. No more alerts will be sent to this address.';
+  }
+  document.body.prepend(bar);
+  setTimeout(() => bar.remove(), 7000);
+  window.history.replaceState({}, '', window.location.pathname);
+}
+
 async function init() {
   await loadDrops();
   populateCountyDropdown();
@@ -813,6 +1332,9 @@ async function init() {
   renderAreaTabs();
   renderListings();
   subscribeRealtime();
+  // Check for unsubscribe token in URL
+  const unsub = new URLSearchParams(window.location.search).get('unsub');
+  if (unsub) handleUnsubscribe(unsub);
 }
 
 init();

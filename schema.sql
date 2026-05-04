@@ -180,6 +180,43 @@ FROM listings l
 WHERE l.status = 'Active'
 ORDER BY l.days_on_market DESC NULLS LAST;
 
+-- SUBSCRIBERS: buyer alert preferences
+CREATE TABLE IF NOT EXISTS subscribers (
+  id                BIGSERIAL PRIMARY KEY,
+  email             TEXT NOT NULL,
+  name              TEXT,
+  counties          TEXT[],            -- ['Monmouth'] | ['Ocean'] | both | null=any
+  towns             TEXT[],            -- ['Brick','Toms River'] | null=all towns
+  property_types    TEXT[],            -- ['Single Family'] | null=any
+  min_beds          INTEGER,           -- null=any
+  min_baths         NUMERIC(3,1),      -- null=any
+  min_price         BIGINT,            -- null=any
+  max_price         BIGINT,            -- null=any
+  min_sqft          INTEGER,           -- null=any
+  max_sqft          INTEGER,           -- null=any
+  min_drop_pct      NUMERIC(5,2) DEFAULT 1.0,
+  features          TEXT[],            -- ['OCEAN VIEWS','POOL'] | null=any
+  max_dom           INTEGER,           -- null=any
+  alert_on          TEXT DEFAULT 'drops',   -- 'drops' | 'all'
+  frequency         TEXT DEFAULT 'instant', -- 'instant' | 'weekly'
+  is_active         BOOLEAN DEFAULT TRUE,
+  unsubscribe_token TEXT DEFAULT gen_random_uuid()::text,
+  created_at        TIMESTAMPTZ DEFAULT NOW(),
+  last_emailed_at   TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_subscribers_active ON subscribers(is_active) WHERE is_active = TRUE;
+CREATE INDEX IF NOT EXISTS idx_subscribers_email  ON subscribers(email);
+
+-- UNSUBSCRIBE RPC — callable by anon key via ?unsub=TOKEN
+CREATE OR REPLACE FUNCTION unsubscribe(token TEXT)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN
+  UPDATE subscribers SET is_active = FALSE WHERE unsubscribe_token = token;
+END;
+$$;
+GRANT EXECUTE ON FUNCTION unsubscribe(TEXT) TO anon;
+
 -- ============================================================
 -- Row Level Security (enable if using Supabase public anon key)
 -- ============================================================
@@ -193,3 +230,8 @@ CREATE POLICY "Public read listings"    ON listings     FOR SELECT USING (true);
 CREATE POLICY "Public read drops"       ON price_drops  FOR SELECT USING (true);
 CREATE POLICY "No public write"         ON listings     FOR INSERT WITH CHECK (false);
 CREATE POLICY "No public drop write"    ON price_drops  FOR INSERT WITH CHECK (false);
+
+-- Subscribers: public can INSERT (sign up), but never read others' data
+ALTER TABLE subscribers ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Anyone can subscribe"    ON subscribers  FOR INSERT WITH CHECK (true);
+CREATE POLICY "No public read subs"     ON subscribers  FOR SELECT USING (false);
