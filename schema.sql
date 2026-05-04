@@ -113,6 +113,15 @@ SELECT
   l.tags,
   l.latitude,
   l.longitude,
+  -- Price per sq ft (computed from current price / sqft)
+  ROUND(l.current_price::NUMERIC / NULLIF(l.sqft, 0))::INTEGER AS ppsqft,
+  -- Average ppsqft for all active listings in same city
+  (SELECT ROUND(AVG(l2.current_price::NUMERIC / NULLIF(l2.sqft, 0)))::INTEGER
+   FROM listings l2
+   WHERE l2.city = l.city
+     AND l2.status = 'Active'
+     AND l2.sqft > 0
+     AND l2.current_price > 0) AS town_avg_ppsqft,
   -- Was this drop detected today?
   (pd.detected_at::DATE = CURRENT_DATE) AS is_new_today,
   -- Total number of price drops this listing has had
@@ -122,6 +131,54 @@ JOIN listings l ON l.id = pd.listing_id
 WHERE pd.is_active = TRUE
   AND l.status = 'Active'
 ORDER BY pd.drop_dollar DESC;
+
+-- VIEW: all active listings (no drop required) — powers the "All Active" toggle
+CREATE OR REPLACE VIEW all_active_listings AS
+SELECT
+  l.id                                                               AS listing_id,
+  NULL::bigint                                                       AS drop_id,
+  l.current_price                                                    AS price_after,
+  l.original_price                                                   AS price_before,
+  GREATEST(0, COALESCE(l.original_price, l.current_price) - l.current_price) AS drop_dollar,
+  CASE
+    WHEN l.original_price > l.current_price AND l.original_price > 0
+    THEN ROUND(((l.original_price - l.current_price)::NUMERIC / l.original_price) * 100, 2)
+    ELSE 0
+  END                                                                AS drop_pct,
+  NULL::timestamptz                                                  AS detected_at,
+  l.address,
+  l.city,
+  l.county,
+  l.neighborhood,
+  l.zip,
+  l.property_type,
+  l.bedrooms,
+  l.bathrooms,
+  l.sqft,
+  l.lot_size,
+  l.year_built,
+  l.garage,
+  l.days_on_market,
+  l.list_date,
+  l.photo_url,
+  l.listing_url,
+  l.mls_number,
+  l.agent_name,
+  l.tags,
+  l.latitude,
+  l.longitude,
+  ROUND(l.current_price::NUMERIC / NULLIF(l.sqft, 0))::INTEGER      AS ppsqft,
+  (SELECT ROUND(AVG(l2.current_price::NUMERIC / NULLIF(l2.sqft, 0)))::INTEGER
+   FROM listings l2
+   WHERE l2.city = l.city
+     AND l2.status = 'Active'
+     AND l2.sqft > 0
+     AND l2.current_price > 0)                                       AS town_avg_ppsqft,
+  (l.list_date >= CURRENT_DATE - 1)                                 AS is_new_today,
+  0::integer                                                         AS drop_count
+FROM listings l
+WHERE l.status = 'Active'
+ORDER BY l.days_on_market DESC NULLS LAST;
 
 -- ============================================================
 -- Row Level Security (enable if using Supabase public anon key)
