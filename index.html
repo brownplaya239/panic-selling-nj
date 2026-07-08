@@ -182,6 +182,36 @@
   .mode-btn:hover{border-color:var(--text3);color:var(--text);opacity:1;}
   #modeBtnDrops.active{background:var(--red);border-color:var(--red);color:#fff;font-weight:600;opacity:1;}
   #modeBtnAll.active{background:var(--green);border-color:var(--green);color:#0b0f1a;font-weight:600;opacity:1;}
+  #modeBtnComps.active{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600;opacity:1;}
+  /* COMPS VIEW */
+  .comps-wrap{padding:18px 16px;max-width:1000px;}
+  .comps-intro{font-family:var(--mono);font-size:10px;color:var(--text3);margin-bottom:12px;line-height:1.5;}
+  .comps-form{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px;}
+  .comps-input{background:var(--bg);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:11px;padding:9px 11px;outline:none;}
+  .comps-input:focus{border-color:var(--accent);}
+  .comps-input::placeholder{color:var(--text3);}
+  #compAddress{flex:1;min-width:230px;}
+  #compSqft,#compBeds{width:110px;}
+  .comps-btn{background:var(--accent);border:1px solid var(--accent);color:#fff;font-family:var(--mono);font-size:11px;font-weight:600;padding:9px 22px;cursor:pointer;letter-spacing:.04em;}
+  .comps-btn:hover{background:var(--accent2);}
+  .comps-btn:disabled{opacity:.5;cursor:default;}
+  .comps-err{font-family:var(--mono);font-size:10px;color:var(--red);min-height:16px;margin:6px 0;}
+  .comps-subject{font-family:var(--mono);font-size:11px;color:var(--cyan);margin:14px 0 4px;}
+  .comps-stats{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 16px;}
+  .comp-tile{border:1px solid var(--border);background:var(--bg2);padding:10px 16px;min-width:110px;}
+  .comp-tile .v{font-size:16px;font-weight:600;color:var(--text);}
+  .comp-tile .l{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:.08em;margin-top:2px;}
+  .comp-tile.implied{border-color:var(--green);background:rgba(52,211,153,.05);}
+  .comp-tile.implied .v{color:var(--green);}
+  .comps-table-wrap{overflow-x:auto;border:1px solid var(--border);}
+  .comps-table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:10px;white-space:nowrap;}
+  .comps-table th{text-align:left;padding:8px 10px;color:var(--text3);font-weight:400;letter-spacing:.06em;border-bottom:1px solid var(--border2);background:var(--bg2);font-size:9px;}
+  .comps-table td{padding:8px 10px;color:var(--text2);border-bottom:1px solid var(--border);}
+  .comps-table tr:last-child td{border-bottom:none;}
+  .comps-table .c-price{color:var(--text);font-weight:600;}
+  .comps-table .c-over{color:var(--green);}
+  .comps-table .c-under{color:var(--red);}
+  .comps-note{font-family:var(--mono);font-size:9px;color:var(--text3);margin-top:10px;line-height:1.5;}
 
   /* SUBSCRIBE MODAL */
   .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(3px);}
@@ -322,6 +352,7 @@
   <span class="mode-toggle-label">VIEW :</span>
   <button class="mode-btn active" id="modeBtnDrops" onclick="setMode('drops')">▼ Price Drops</button>
   <button class="mode-btn" id="modeBtnAll" onclick="setMode('all')">▣ All Active Listings</button>
+  <button class="mode-btn" id="modeBtnComps" onclick="setMode('comps')">⌂ Sold Comps</button>
 </div>
 
 <!-- FILTER BAR -->
@@ -386,6 +417,21 @@
 
 <!-- LISTINGS -->
 <div id="listings"><div class="loading"><span class="spinner"></span>Scanning MLS for price drops...</div></div>
+
+<!-- COMPS VIEW -->
+<div id="compsView" style="display:none">
+  <div class="comps-wrap">
+    <div class="comps-intro">Enter any Monmouth or Ocean County address to pull recent closed sales nearby — sold prices, $/sqft, and sale-vs-list from live MLS data.</div>
+    <div class="comps-form">
+      <input class="comps-input" id="compAddress" placeholder="123 Main St, Toms River NJ" onkeydown="if(event.key==='Enter')runComps()">
+      <input class="comps-input" id="compSqft" placeholder="Sqft (opt)" inputmode="numeric" onkeydown="if(event.key==='Enter')runComps()">
+      <input class="comps-input" id="compBeds" placeholder="Beds (opt)" inputmode="numeric" onkeydown="if(event.key==='Enter')runComps()">
+      <button class="comps-btn" id="compGoBtn" onclick="runComps()">Pull Comps →</button>
+    </div>
+    <div class="comps-err" id="compsErr"></div>
+    <div id="compsResults"></div>
+  </div>
+</div>
 
 <!-- TOOLTIP (drop history) -->
 <div id="dropTooltip" class="drop-tooltip" style="display:none"></div>
@@ -1027,6 +1073,22 @@ function setMode(mode) {
   currentMode = mode;
   document.getElementById('modeBtnDrops').classList.toggle('active', mode === 'drops');
   document.getElementById('modeBtnAll').classList.toggle('active', mode === 'all');
+  document.getElementById('modeBtnComps').classList.toggle('active', mode === 'comps');
+  // Comps is a separate view: swap the list UI out entirely
+  const listView = mode !== 'comps';
+  document.querySelector('.filter-bar').style.display     = listView ? '' : 'none';
+  document.querySelector('.bed-filter').style.display     = listView ? '' : 'none';
+  document.querySelector('.area-tabs-wrap').style.display = listView ? '' : 'none';
+  document.querySelector('.ts-bar').style.display         = listView ? '' : 'none';
+  document.getElementById('listings').style.display       = listView ? '' : 'none';
+  document.getElementById('compsView').style.display      = listView ? 'none' : 'block';
+  if (mode === 'comps') {
+    document.getElementById('alertCtaBar').style.display  = 'none';
+    document.getElementById('townStatsBar').style.display = 'none';
+    document.getElementById('headerMode').textContent     = 'Sold Comps';
+    setTimeout(() => document.getElementById('compAddress').focus(), 50);
+    return;
+  }
   currentArea = 'all';
   currentType = 'all';
   currentBed  = 'any';
@@ -1050,6 +1112,75 @@ function setMode(mode) {
     renderAreaTabs();
     renderListings(true);
   });
+}
+
+// SOLD COMPS
+async function runComps() {
+  const addr = document.getElementById('compAddress').value.trim();
+  const sqft = parseInt(document.getElementById('compSqft').value) || null;
+  const beds = parseInt(document.getElementById('compBeds').value) || null;
+  const errEl = document.getElementById('compsErr');
+  const resEl = document.getElementById('compsResults');
+  const btn   = document.getElementById('compGoBtn');
+  errEl.textContent = '';
+  if (!addr) { errEl.textContent = 'Enter an address first.'; return; }
+
+  btn.disabled = true; btn.textContent = 'Searching...';
+  resEl.innerHTML = '<div class="loading"><span class="spinner"></span>Geocoding address and pulling closed sales...</div>';
+  try {
+    const qs = new URLSearchParams({ address: addr });
+    if (sqft) qs.set('sqft', sqft);
+    if (beds) qs.set('beds', beds);
+    const resp = await fetch('/api/comps?' + qs.toString());
+    const body = await resp.json().catch(() => null);
+    if (!body) throw new Error('Comps service unavailable — try again in a minute.');
+    if (!body.success) throw new Error(body.error || 'Lookup failed');
+    renderComps(body);
+  } catch (e) {
+    resEl.innerHTML = '';
+    errEl.textContent = e.message || 'Comps lookup failed — please try again.';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Pull Comps →';
+  }
+}
+
+function renderComps(r) {
+  const resEl = document.getElementById('compsResults');
+  const s = r.stats;
+  if (!s.sale_count) {
+    resEl.innerHTML = '<div class="loading">No closed sales found within ' + s.radius_mi + ' mile in the last ' + s.months + ' months. Try a different address.</div>';
+    return;
+  }
+  let tiles = ''
+    + '<div class="comp-tile"><div class="v">' + s.sale_count + '</div><div class="l">SALES / ' + s.months + ' MO</div></div>'
+    + '<div class="comp-tile"><div class="v">' + fmtM(s.median_price) + '</div><div class="l">MEDIAN SOLD</div></div>'
+    + (s.median_ppsqft ? '<div class="comp-tile"><div class="v">$' + s.median_ppsqft + '</div><div class="l">MEDIAN $/SF</div></div>' : '');
+  if (s.implied_value) {
+    tiles += '<div class="comp-tile implied"><div class="v">' + fmtM(s.implied_value_low) + ' – ' + fmtM(s.implied_value_high) + '</div><div class="l">IMPLIED VALUE @ ' + r.subject.sqft.toLocaleString() + ' SF</div></div>';
+  }
+  const rows = r.comps.map(c => {
+    const svl = c.sale_vs_list_pct;
+    const svlCell = (svl === null || svl === undefined) ? '--'
+      : '<span class="' + (svl > 0 ? 'c-over' : svl < 0 ? 'c-under' : '') + '">' + (svl > 0 ? '+' : '') + svl + '%</span>';
+    return '<tr>'
+      + '<td>' + c.address + '</td>'
+      + '<td>' + (c.distance_mi != null ? c.distance_mi + ' mi' : '--') + '</td>'
+      + '<td>' + (c.close_date ? new Date(c.close_date + 'T12:00:00').toLocaleDateString('en-US', {month:'short', day:'numeric', year:'2-digit'}) : '--') + '</td>'
+      + '<td class="c-price">' + fmtPrice(c.close_price) + '</td>'
+      + '<td>' + svlCell + '</td>'
+      + '<td>' + (c.beds ?? '--') + '/' + (c.baths ?? '--') + '</td>'
+      + '<td>' + (c.sqft ? c.sqft.toLocaleString() : '--') + '</td>'
+      + '<td>' + (c.ppsqft ? '$' + c.ppsqft : '--') + '</td>'
+      + '<td>' + (c.type || '--') + '</td>'
+      + '</tr>';
+  }).join('');
+  resEl.innerHTML =
+    '<div class="comps-subject">📍 ' + r.subject.address + ' — closed sales within ' + s.radius_mi + ' mi, last ' + s.months + ' months</div>'
+    + '<div class="comps-stats">' + tiles + '</div>'
+    + '<div class="comps-table-wrap"><table class="comps-table">'
+    + '<thead><tr><th>ADDRESS</th><th>DIST</th><th>SOLD</th><th>PRICE</th><th>VS LIST</th><th>BD/BA</th><th>SQFT</th><th>$/SF</th><th>TYPE</th></tr></thead>'
+    + '<tbody>' + rows + '</tbody></table></div>'
+    + '<div class="comps-note">Closed-sale data from MORMLS. Comps ranked by distance, similarity, and recency. This is market data, not an appraisal.</div>';
 }
 
 // RESET ALL FILTERS

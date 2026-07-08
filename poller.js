@@ -77,6 +77,8 @@ async function sparkFetch(endpoint, params = {}) {
       'ListingId', 'MlsId', 'StandardFields.UnparsedAddress',
       'StandardFields.City', 'StandardFields.PostalCode',
       'StandardFields.SubdivisionName', 'StandardFields.PropertyType',
+      'StandardFields.PropertySubType', 'StandardFields.PropertyTypeLabel',
+      'StandardFields.BedsTotal', 'StandardFields.BathsTotal',
       'StandardFields.BedroomsTotal', 'StandardFields.BathroomsTotalDecimal',
       'StandardFields.BuildingAreaTotal', 'StandardFields.LotSizeArea',
       'StandardFields.YearBuilt', 'StandardFields.GarageSpaces',
@@ -162,9 +164,11 @@ function normalizeListing(raw) {
                      : 'Unknown',
     zip:           sf.PostalCode || '',
     neighborhood:  sf.SubdivisionName || '',
-    property_type: sf.PropertyType || 'Residential',
-    bedrooms:      safeInt(sf.BedroomsTotal),
-    bathrooms:     safeDec(sf.BathroomsTotalDecimal),
+    // Feed quirk: PropertyType is a code ("A"); the readable type is PropertySubType
+    property_type: (sf.PropertySubType && !String(sf.PropertySubType).includes('*'))
+                     ? sf.PropertySubType : (sf.PropertyTypeLabel || 'Residential'),
+    bedrooms:      safeInt(sf.BedsTotal) ?? safeInt(sf.BedroomsTotal),
+    bathrooms:     safeDec(sf.BathsTotal) ?? safeDec(sf.BathroomsTotalDecimal),
     sqft:          safeInt(sf.BuildingAreaTotal),
     lot_size:      sf.LotSizeArea ? `${sf.LotSizeArea} acres` : null,
     year_built:    safeInt(sf.YearBuilt),
@@ -222,8 +226,18 @@ async function processListings(rawListings) {
   const detectedDropsForEmail = [];
   const BATCH = 100;
 
-  for (let i = 0; i < rawListings.length; i += BATCH) {
-    const batch = rawListings.slice(i, i + BATCH);
+  // Sales only — the feed also carries rentals and commercial (PropertyTypeLabel:
+  // 'Residential Rental', 'Commercial', 'Commercial Lease'). Fail-open if masked/missing.
+  const SALE_CLASSES = new Set(['Residential', 'Multi-Family', 'Land/Lots']);
+  const saleListings = rawListings.filter(r => {
+    const label = r.StandardFields?.PropertyTypeLabel;
+    return !label || String(label).includes('*') || SALE_CLASSES.has(label);
+  });
+  if (saleListings.length < rawListings.length)
+    console.log(`  Filtered out ${rawListings.length - saleListings.length} rental/commercial listings`);
+
+  for (let i = 0; i < saleListings.length; i += BATCH) {
+    const batch = saleListings.slice(i, i + BATCH);
     const normalized = batch.map(normalizeListing).filter(l => l.current_price > 0 && l.id && !String(l.id).includes('*') && String(l.id).length > 5);
 
     // Get existing prices + statuses for this batch
@@ -334,7 +348,7 @@ async function processListings(rawListings) {
       }
     }
 
-    process.stdout.write(`  Processed ${Math.min(i + BATCH, rawListings.length)}/${rawListings.length} listings\r`);
+    process.stdout.write(`  Processed ${Math.min(i + BATCH, saleListings.length)}/${saleListings.length} listings\r`);
   }
 
   // Mark listings as non-active if we haven't seen them recently (went Pending/Sold)
@@ -343,6 +357,15 @@ async function processListings(rawListings) {
     .update({ is_active: false })
     .lt('detected_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
     .eq('is_active', true);
+
+  // Listings that vanished from the feed for 3+ days (withdrawn, or rentals/commercial
+  // that no longer pass the sale filter) leave the active pool
+  const { error: staleErr } = await supabase
+    .from('listings')
+    .update({ status: 'Off Market' })
+    .lt('last_seen_at', new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString())
+    .eq('status', 'Active');
+  if (staleErr) console.error('Stale listing cleanup error:', staleErr.message);
 
   return { dropsDetected, newListings, detectedDropsForEmail };
 }
