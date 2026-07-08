@@ -85,7 +85,8 @@ async function sparkFetch(endpoint, params = {}) {
       'StandardFields.ListPrice', 'StandardFields.OriginalListPrice',
       'StandardFields.ClosePrice', 'StandardFields.CloseDate',
       'StandardFields.PurchaseContractDate',
-      'StandardFields.ListingContractDate', 'StandardFields.DaysOnMarket',
+      'StandardFields.ListingContractDate', 'StandardFields.OnMarketDate',
+      'StandardFields.DaysOnMarket',
       'StandardFields.MlsStatus', 'StandardFields.Latitude',
       'StandardFields.Longitude', 'StandardFields.PublicRemarks',
       'StandardFields.ListAgentFullName', 'StandardFields.ListAgentMlsId',
@@ -112,30 +113,56 @@ async function sparkFetch(endpoint, params = {}) {
   return resp.json();
 }
 
-// ── FETCH ALL ACTIVE LISTINGS (paginated) ─────────────────────────────────────
+// ── FETCH LISTINGS (price-bucketed) ───────────────────────────────────────────
+// The Spark replication API's _skiptoken/_startat cursor is unreliable under heavy
+// _fields payloads (it silently truncates and dead-ends), so we cannot page a large
+// result set safely. Instead we split the query into ListPrice buckets that each
+// return < 1000 rows in a single call — deterministic, complete, no cursor. Any
+// bucket that still overflows is recursively halved, so it can never silently cap.
 
-async function fetchPaged(filter) {
-  let all = [];
-  let start = 1;
-  while (true) {
-    const data = await sparkFetch('/listings', { _filter: filter, _limit: PAGE_SIZE, _pagination: 1, _startat: start });
-    const results = data?.D?.Results || [];
-    all = all.concat(results);
-    if (results.length < PAGE_SIZE) break;
-    start += PAGE_SIZE;
+const PRICE_EDGES = [MIN_PRICE, 300000, 400000, 500000, 650000, 850000, 1200000, 2000000]; // last edge → open top
+
+async function fetchPriceBucket(baseFilter, lo, hi, byId, depth = 0) {
+  let filter = `${baseFilter} And ListPrice Ge ${lo}`;
+  if (hi != null) filter += ` And ListPrice Lt ${hi}`;
+  const data = await sparkFetch('/listings', { _filter: filter, _limit: PAGE_SIZE, _pagination: 1 });
+  const results = data?.D?.Results || [];
+  const total = data?.D?.Pagination?.TotalRows ?? results.length;
+
+  if (total > results.length) {
+    // Bucket truncated — split in half and recurse (guard against pathological
+    // price clustering so we never recurse forever on identical prices).
+    const span = (hi ?? lo * 4) - lo;
+    if (depth < 8 && span > 1000) {
+      const mid = hi == null ? lo * 2 : lo + Math.floor(span / 2);
+      await fetchPriceBucket(baseFilter, lo, mid, byId, depth + 1);
+      await fetchPriceBucket(baseFilter, mid, hi, byId, depth + 1);
+      return;
+    }
+    console.warn(`  ⚠️  Bucket [${lo}-${hi ?? '∞'}] has ${total} rows but only ${results.length} fetched (price-clustered; ${total - results.length} dropped)`);
   }
-  return all;
+  for (const r of results) if (r.Id) byId.set(r.Id, r);
+}
+
+async function fetchByPrice(baseFilter) {
+  const byId = new Map();
+  for (let i = 0; i < PRICE_EDGES.length; i++) {
+    const lo = PRICE_EDGES[i];
+    const hi = PRICE_EDGES[i + 1] ?? null; // last edge → open-ended top
+    await fetchPriceBucket(baseFilter, lo, hi, byId);
+  }
+  return [...byId.values()];
 }
 
 async function fetchAllActiveListings() {
-  const active = await fetchPaged(`MlsStatus Eq 'Active'`);
-  console.log(`  Fetched ${active.length} active listings from MORMLS`);
+  const active = await fetchByPrice(`MlsStatus Eq 'Active'`);
+  console.log(`  Fetched ${active.length} active listings (≥ $${MIN_PRICE.toLocaleString()}) from MORMLS`);
 
   // Outcome Engine: also fetch recently-changed Pending/Closed listings so we can
   // record status transitions and sale prices. Feed may not expose these — fail soft.
   let changed = [];
   try {
-    changed = await fetchPaged(`(MlsStatus Eq 'Pending' Or MlsStatus Eq 'Closed') And ModificationTimestamp Gt days(-3)`);
+    changed = await fetchByPrice(`(MlsStatus Eq 'Pending' Or MlsStatus Eq 'Closed') And ModificationTimestamp Gt days(-3)`);
     console.log(`  Fetched ${changed.length} recently pending/closed listings`);
   } catch (e) {
     console.warn(`  ⚠️  Pending/Closed fetch failed (feed may not include sold data): ${e.message}`);
@@ -150,6 +177,16 @@ async function fetchAllActiveListings() {
 
 function safeInt(v) { if(!v || String(v).includes('*')) return null; const n=parseInt(v); return isNaN(n)?null:n; }
 function safeDec(v) { if(!v || String(v).includes('*')) return null; const n=parseFloat(v); return isNaN(n)?null:n; }
+// This feed tier doesn't provide DaysOnMarket/CumulativeDaysOnMarket — derive it
+// from OnMarketDate (falling back to ListingContractDate), both 100% populated.
+function computeDom(sf) {
+  const raw = safeInt(sf.DaysOnMarket);
+  if (raw != null) return raw;
+  const d = sf.OnMarketDate || sf.ListingContractDate;
+  if (!d || String(d).includes('*')) return 0;
+  const days = Math.floor((Date.now() - new Date(d).getTime()) / 86400000);
+  return (isNaN(days) || days < 0) ? 0 : days;
+}
 function normalizeListing(raw) {
   const sf = raw.StandardFields || {};
   const photos = raw.Photos || [];
@@ -179,7 +216,7 @@ function normalizeListing(raw) {
     close_date:    (sf.CloseDate && !String(sf.CloseDate).includes('*')) ? sf.CloseDate : null,
     pending_date:  (sf.PurchaseContractDate && !String(sf.PurchaseContractDate).includes('*')) ? sf.PurchaseContractDate : null,
     list_date:     sf.ListingContractDate || null,
-    days_on_market: safeInt(sf.DaysOnMarket) || 0,
+    days_on_market: computeDom(sf),
     status:        sf.MlsStatus || 'Active',
     latitude:      safeDec(sf.Latitude),
     longitude:     safeDec(sf.Longitude),
@@ -208,12 +245,13 @@ function isMonmouth(city) {
 
 function buildTags(sf) {
   const tags = [];
+  const dom = computeDom(sf);
   if (sf.WaterfrontYN)                    tags.push('WATERFRONT');
   if (sf.WaterBodyName?.toLowerCase().includes('ocean')) tags.push('OCEAN VIEWS');
   if (sf.PoolPrivateYN)                   tags.push('POOL');
   if (sf.NewConstructionYN)               tags.push('NEW CONSTRUCTION');
-  if ((sf.DaysOnMarket || 0) > 60)        tags.push('LONG DOM');
-  if ((sf.DaysOnMarket || 0) <= 3)        tags.push('JUST LISTED');
+  if (dom > 60)                           tags.push('LONG DOM');
+  if (dom <= 3)                           tags.push('JUST LISTED');
   if (sf.PropertyType === 'Land')         tags.push('LAND');
   return tags;
 }
