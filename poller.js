@@ -10,8 +10,7 @@
  *   node poller.js --watch  ← runs on cron schedule (default: 6am + 8pm daily)
  *
  * ENV VARS NEEDED (.env file):
- *   SPARK_CLIENT_ID        ← from sparkplatform.com developer portal
- *   SPARK_CLIENT_SECRET    ← from sparkplatform.com developer portal
+ *   SPARK_ACCESS_TOKEN     ← static Bearer token from MORMLS
  *   SUPABASE_URL           ← from supabase.com project settings
  *   SUPABASE_SERVICE_KEY   ← service_role key (NOT anon key — needs write access)
  */
@@ -82,6 +81,8 @@ async function sparkFetch(endpoint, params = {}) {
       'StandardFields.BuildingAreaTotal', 'StandardFields.LotSizeArea',
       'StandardFields.YearBuilt', 'StandardFields.GarageSpaces',
       'StandardFields.ListPrice', 'StandardFields.OriginalListPrice',
+      'StandardFields.ClosePrice', 'StandardFields.CloseDate',
+      'StandardFields.PurchaseContractDate',
       'StandardFields.ListingContractDate', 'StandardFields.DaysOnMarket',
       'StandardFields.MlsStatus', 'StandardFields.Latitude',
       'StandardFields.Longitude', 'StandardFields.PublicRemarks',
@@ -111,14 +112,33 @@ async function sparkFetch(endpoint, params = {}) {
 
 // ── FETCH ALL ACTIVE LISTINGS (paginated) ─────────────────────────────────────
 
-﻿async function fetchAllActiveListings() {
-  const filter = `MlsStatus Eq 'Active'`;
-  let allListings = [];
-  const data1 = await sparkFetch('/listings', {_filter:filter,_limit:PAGE_SIZE,_pagination:1,_startat:1});
-  const data2 = await sparkFetch('/listings', {_filter:filter,_limit:PAGE_SIZE,_pagination:1,_startat:1001});
-  allListings = [...(data1?.D?.Results||[]), ...(data2?.D?.Results||[])];
-  console.log(`  Fetched ${allListings.length} active listings from MORMLS`);
-  return allListings;
+async function fetchPaged(filter) {
+  let all = [];
+  let start = 1;
+  while (true) {
+    const data = await sparkFetch('/listings', { _filter: filter, _limit: PAGE_SIZE, _pagination: 1, _startat: start });
+    const results = data?.D?.Results || [];
+    all = all.concat(results);
+    if (results.length < PAGE_SIZE) break;
+    start += PAGE_SIZE;
+  }
+  return all;
+}
+
+async function fetchAllActiveListings() {
+  const active = await fetchPaged(`MlsStatus Eq 'Active'`);
+  console.log(`  Fetched ${active.length} active listings from MORMLS`);
+
+  // Outcome Engine: also fetch recently-changed Pending/Closed listings so we can
+  // record status transitions and sale prices. Feed may not expose these — fail soft.
+  let changed = [];
+  try {
+    changed = await fetchPaged(`(MlsStatus Eq 'Pending' Or MlsStatus Eq 'Closed') And ModificationTimestamp Gt days(-3)`);
+    console.log(`  Fetched ${changed.length} recently pending/closed listings`);
+  } catch (e) {
+    console.warn(`  ⚠️  Pending/Closed fetch failed (feed may not include sold data): ${e.message}`);
+  }
+  return [...active, ...changed];
 }
 
 
@@ -151,13 +171,17 @@ function normalizeListing(raw) {
     garage:        sf.GarageSpaces ? `${sf.GarageSpaces} car` : null,
     current_price: safeInt(sf.ListPrice) || 0,
     original_price: safeInt(sf.OriginalListPrice) || safeInt(sf.ListPrice) || null,
+    close_price:   safeInt(sf.ClosePrice),
+    close_date:    (sf.CloseDate && !String(sf.CloseDate).includes('*')) ? sf.CloseDate : null,
+    pending_date:  (sf.PurchaseContractDate && !String(sf.PurchaseContractDate).includes('*')) ? sf.PurchaseContractDate : null,
     list_date:     sf.ListingContractDate || null,
     days_on_market: safeInt(sf.DaysOnMarket) || 0,
     status:        sf.MlsStatus || 'Active',
     latitude:      safeDec(sf.Latitude),
     longitude:     safeDec(sf.Longitude),
     photo_url:     photos[0]?.Uri800 || photos[0]?.UriThumb || null,
-    listing_url:   `https://www.flexmls.com/share/listing/${raw.ListingId}`,
+    listing_url:   (raw.ListingId && !String(raw.ListingId).includes('*'))
+                     ? `https://www.flexmls.com/share/listing/${raw.ListingId}` : null,
     agent_name:    sf.ListAgentFullName || null,
     agent_id:      sf.ListAgentMlsId || null,
     office_name:   sf.ListOfficeName || null,
@@ -202,14 +226,15 @@ async function processListings(rawListings) {
     const batch = rawListings.slice(i, i + BATCH);
     const normalized = batch.map(normalizeListing).filter(l => l.current_price > 0 && l.id && !String(l.id).includes('*') && String(l.id).length > 5);
 
-    // Get existing prices for this batch
+    // Get existing prices + statuses for this batch
     const ids = normalized.map(l => l.id);
     const { data: existing } = await supabase
       .from('listings')
-      .select('id, current_price')
+      .select('id, current_price, status')
       .in('id', ids);
 
     const existingMap = Object.fromEntries((existing || []).map(e => [e.id, e.current_price]));
+    const statusMap   = Object.fromEntries((existing || []).map(e => [e.id, e.status]));
 
     // Upsert listings
     const { error: upsertErr } = await supabase
@@ -220,18 +245,45 @@ async function processListings(rawListings) {
       console.error('Upsert error:', upsertErr.message, JSON.stringify(upsertErr.details||'').slice(0,100));
       continue;
     }
-    // Insert price snapshots for all
-    const snapshots = normalized.map(l => ({
+    // Insert price snapshots (active listings only — closed prices are captured in close_price)
+    const snapshots = normalized.filter(l => l.status === 'Active').map(l => ({
       listing_id:  l.id,
       price:       l.current_price,
       recorded_at: new Date().toISOString(),
     }));
 
-    const {error:snapErr} = await supabase.from('price_snapshots').insert(snapshots);
-    if(snapErr) console.error('Snapshot error:', snapErr.message);
+    if (snapshots.length) {
+      const {error:snapErr} = await supabase.from('price_snapshots').insert(snapshots);
+      if(snapErr) console.error('Snapshot error:', snapErr.message);
+    }
 
-    // Detect drops
+    // Outcome Engine: record status transitions (Active→Pending→Closed etc.)
+    const transitions = normalized
+      .filter(l => statusMap[l.id] && statusMap[l.id] !== l.status)
+      .map(l => ({
+        listing_id:      l.id,
+        old_status:      statusMap[l.id],
+        new_status:      l.status,
+        price_at_change: l.close_price || l.current_price,
+      }));
+    if (transitions.length) {
+      const { error: evtErr } = await supabase.from('listing_status_events').insert(transitions);
+      if (evtErr) console.error('Status event error:', evtErr.message);
+      // Listings leaving the market take their drops off the board
+      const goneIds = transitions.filter(t => t.new_status !== 'Active').map(t => t.listing_id);
+      if (goneIds.length) {
+        const { error: offErr } = await supabase
+          .from('price_drops').update({ is_active: false })
+          .in('listing_id', goneIds).eq('is_active', true);
+        if (offErr) console.error('Drop deactivate error:', offErr.message);
+        transitions.filter(t => t.new_status !== 'Active')
+          .forEach(t => console.log(`  🔁 ${t.listing_id}: ${t.old_status} → ${t.new_status}`));
+      }
+    }
+
+    // Detect drops (active listings only)
     for (const listing of normalized) {
+      if (listing.status !== 'Active') continue;
       const prevPrice = existingMap[listing.id];
 
       if (!prevPrice) {
@@ -244,20 +296,22 @@ async function processListings(rawListings) {
 
       if (dropDollar >= DROP_MIN_DOLLARS && dropPct >= DROP_MIN_PCT) {
         // Mark any old active drops for this listing as inactive
-        await supabase
+        const { error: deactivateErr } = await supabase
           .from('price_drops')
           .update({ is_active: false })
           .eq('listing_id', listing.id)
           .eq('is_active', true);
+        if (deactivateErr) console.error('Deactivate drop error:', deactivateErr.message);
 
         // Insert new drop
-        await supabase.from('price_drops').insert({
+        const { error: insertDropErr } = await supabase.from('price_drops').insert({
           listing_id:   listing.id,
           price_before: prevPrice,
           price_after:  listing.current_price,
           detected_at:  new Date().toISOString(),
           is_active:    true,
         });
+        if (insertDropErr) { console.error('Insert drop error:', insertDropErr.message); continue; }
 
         dropsDetected++;
         detectedDropsForEmail.push({
@@ -476,6 +530,16 @@ async function sendWeeklyDigest() {
 
 const watchMode = process.argv.includes('--watch');
 
+async function cleanOldSnapshots() {
+  const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const { error, count } = await supabase
+    .from('price_snapshots')
+    .delete({ count: 'exact' })
+    .lt('recorded_at', cutoff);
+  if (error) console.error('Snapshot cleanup error:', error.message);
+  else console.log(`🗑️  Pruned ${count ?? '?'} old price snapshots (>30 days)`);
+}
+
 if (watchMode) {
   console.log('👀 Watch mode: polling at 6:00 AM and 8:00 PM daily (Eastern)');
   console.log('📰 Weekly digest: Sundays at 8:00 AM (Eastern)');
@@ -483,6 +547,7 @@ if (watchMode) {
   cron.schedule('0 6  * * *',   poll,             { timezone: 'America/New_York' });
   cron.schedule('0 20 * * *',   poll,             { timezone: 'America/New_York' });
   cron.schedule('0 8  * * 0',   sendWeeklyDigest, { timezone: 'America/New_York' });
+  cron.schedule('0 3  * * 0',   cleanOldSnapshots,{ timezone: 'America/New_York' }); // Sundays 3 AM
 } else {
   poll().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });
 }

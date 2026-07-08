@@ -180,6 +180,73 @@ FROM listings l
 WHERE l.status = 'Active'
 ORDER BY l.days_on_market DESC NULLS LAST;
 
+-- ============================================================
+-- OUTCOME ENGINE: track listing lifecycle → grade predictions
+-- ============================================================
+
+-- Sale outcome columns on listings (populated when feed reports Pending/Closed)
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS close_price  BIGINT;
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS close_date   DATE;
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS pending_date DATE;
+
+-- STATUS EVENTS: one row per observed status transition (Active→Pending→Closed etc.)
+CREATE TABLE IF NOT EXISTS listing_status_events (
+  id               BIGSERIAL PRIMARY KEY,
+  listing_id       TEXT NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
+  old_status       TEXT,
+  new_status       TEXT NOT NULL,
+  price_at_change  BIGINT,
+  changed_at       TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_status_events_listing ON listing_status_events(listing_id, changed_at DESC);
+ALTER TABLE listing_status_events ENABLE ROW LEVEL SECURITY;  -- no public policies: service key only
+
+-- VIEW: full lifecycle per listing that left the market — the grading substrate
+CREATE OR REPLACE VIEW listing_outcomes AS
+SELECT
+  l.id AS listing_id,
+  l.address, l.city, l.county, l.property_type,
+  l.original_price, l.current_price, l.close_price,
+  l.list_date, l.pending_date, l.close_date, l.status,
+  (SELECT COUNT(*) FROM price_drops pd WHERE pd.listing_id = l.id)::INTEGER AS total_cuts,
+  CASE WHEN l.close_price > 0 AND l.original_price > 0
+       THEN ROUND(((l.original_price - l.close_price)::NUMERIC / l.original_price) * 100, 2)
+  END AS final_discount_pct,
+  CASE WHEN l.close_date IS NOT NULL AND l.list_date IS NOT NULL
+       THEN (l.close_date - l.list_date)
+  END AS days_to_close
+FROM listings l
+WHERE l.status IN ('Pending', 'Closed') OR l.close_price IS NOT NULL;
+
+-- VIEW: per-town live market stats + cut-again rate (Neighborhood Intelligence)
+CREATE OR REPLACE VIEW town_stats AS
+WITH drop_stats AS (
+  SELECT
+    listing_id,
+    COUNT(*) AS n_drops,
+    MAX(CASE WHEN rn = 2 AND detected_at <= first_at + INTERVAL '30 days' THEN 1 ELSE 0 END) AS cut_again_30
+  FROM (
+    SELECT listing_id, detected_at,
+           ROW_NUMBER() OVER (PARTITION BY listing_id ORDER BY detected_at) AS rn,
+           MIN(detected_at) OVER (PARTITION BY listing_id) AS first_at
+    FROM price_drops
+  ) t
+  GROUP BY listing_id
+)
+SELECT
+  l.city,
+  COUNT(*)::INTEGER AS active_count,
+  PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY l.current_price)::BIGINT AS median_price,
+  PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY l.days_on_market)::INTEGER AS median_dom,
+  ROUND(100.0 * COUNT(ds.listing_id) / NULLIF(COUNT(*), 0))::INTEGER AS pct_with_cut,
+  ROUND(100.0 * SUM(COALESCE(ds.cut_again_30, 0)) / NULLIF(COUNT(ds.listing_id), 0))::INTEGER AS cut_again_30_pct
+FROM listings l
+LEFT JOIN drop_stats ds ON ds.listing_id = l.id
+WHERE l.status = 'Active'
+GROUP BY l.city;
+
+GRANT SELECT ON town_stats TO anon, authenticated;
+
 -- SUBSCRIBERS: buyer alert preferences
 CREATE TABLE IF NOT EXISTS subscribers (
   id                BIGSERIAL PRIMARY KEY,

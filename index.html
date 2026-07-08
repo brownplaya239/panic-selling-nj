@@ -53,6 +53,7 @@
   .area-tab.active{color:var(--accent);border-bottom-color:var(--accent);}
   .area-tab .cnt{background:var(--bg3);border:1px solid var(--border2);color:var(--text3);font-size:9px;padding:1px 5px;border-radius:2px;}
   .area-tab.active .cnt{color:var(--accent);border-color:var(--accent2);}
+  .area-tabs-wrap::after{content:'';position:absolute;right:0;top:0;bottom:0;width:36px;background:linear-gradient(to right,transparent,var(--bg2));pointer-events:none;}
 
   /* BREADCRUMB */
   .breadcrumb{padding:6px 16px;font-family:var(--mono);font-size:10px;color:var(--text3);border-bottom:1px solid var(--border);display:flex;gap:6px;align-items:center;}
@@ -237,6 +238,10 @@
   .alert-cta-text strong{color:var(--cyan);}
   .btn-alert-cta{padding:4px 12px;background:none;border:1px solid rgba(56,189,248,.4);color:var(--cyan);font-family:var(--mono);font-size:10px;cursor:pointer;white-space:nowrap;transition:all .12s;flex-shrink:0;}
   .btn-alert-cta:hover{background:rgba(56,189,248,.08);}
+  /* TOWN STATS STRIP */
+  .town-stats-bar{display:none;gap:18px;padding:6px 16px;background:var(--bg2);border-bottom:1px solid var(--border);font-family:var(--mono);font-size:10px;color:var(--text2);overflow-x:auto;white-space:nowrap;}
+  .town-stats-bar b{color:var(--text);font-weight:600;}
+  .town-stat-hi{color:var(--cyan);}
   /* AD CARD — ALERT SIGNUP */
   .ad-alert-card{display:grid;grid-template-columns:36px 1fr auto;align-items:center;gap:12px;border-bottom:1px solid var(--border);padding:14px 16px;background:rgba(14,165,233,.03);border-left:2px solid var(--accent2);cursor:default;}
   .ad-alert-icon{font-size:20px;text-align:center;}
@@ -298,6 +303,9 @@
   <span class="alert-cta-text">🔔 Watching <strong id="ctaCity">this area</strong>? Get emailed the moment a home drops in price here.</span>
   <button class="btn-alert-cta" onclick="openSubscribeModal()">Get Free Alerts →</button>
 </div>
+
+<!-- TOWN STATS STRIP (Neighborhood Intelligence) -->
+<div id="townStatsBar" class="town-stats-bar"></div>
 
 <!-- PAGE HEADER -->
 <div class="page-header">
@@ -715,7 +723,7 @@ function timeAgo(iso) {
 const DISPLAY_MAX = 1000;  // cap shown rows; users filter to narrow
 const BUFFER      = 6;
 const AD_INDEX    = 4;
-const AD_HEIGHT   = 72;
+const AD_HEIGHT   = 100;
 let filteredData  = [];
 let totalFiltered = 0;
 let _rowH         = 100;   // estimated; gets measured after first render
@@ -751,7 +759,7 @@ function rowHTML(d, i) {
   const lid = d.listing_id || '';
   const priceDisplay = isConfirmed
     ? '<div class="price-current">' + fmtPrice(d.price_after) + '</div>'
-      + '<div class="price-meta"><span class="drop-amt history-trigger" onmouseenter="showDropHistory(event,\''+lid+'\')" onmouseleave="hideDropHistory()">'
+      + '<div class="price-meta"><span class="drop-amt history-trigger" onmouseenter="showDropHistory(event,\''+lid+'\')" onmouseleave="hideDropHistory()" onclick="showDropHistory(event,\''+lid+'\')">'
       + fmtDrop(d.drop_dollar) + ' (' + parseFloat(d.drop_pct).toFixed(1) + '%) on ' + new Date(d.detected_at).toLocaleDateString('en-US',{month:'numeric',day:'numeric'})
       + ' ▸</span></div>'
       + '<div class="price-meta" style="margin-top:2px"><span style="color:var(--text3)">was ' + fmtPrice(d.price_before) + '</span></div>'
@@ -917,11 +925,38 @@ function setArea(city, label) {
   if (city !== 'all') {
     document.getElementById('ctaCity').textContent = label;
     ctaBar.style.display = 'flex';
+    showTownStats(city);
   } else {
     ctaBar.style.display = 'none';
+    document.getElementById('townStatsBar').style.display = 'none';
   }
   renderAreaTabs();
   renderListings(true);
+}
+
+// NEIGHBORHOOD INTELLIGENCE — per-town stats strip
+const _townStatsCache = {};
+async function showTownStats(city) {
+  const bar = document.getElementById('townStatsBar');
+  bar.style.display = 'none';
+  try {
+    if (!_townStatsCache[city]) {
+      const { data, error } = await sb.from('town_stats').select('*').eq('city', city).single();
+      if (error || !data) return;
+      _townStatsCache[city] = data;
+    }
+    const s = _townStatsCache[city];
+    if (currentArea !== city) return; // user moved on while we fetched
+    const parts = [
+      '<span><b>' + s.active_count + '</b> active</span>',
+      s.median_price ? '<span>median <b>' + fmtM(s.median_price) + '</b></span>' : '',
+      (s.median_dom || s.median_dom === 0) ? '<span>median <b>' + s.median_dom + 'D</b> on market</span>' : '',
+      (s.pct_with_cut || s.pct_with_cut === 0) ? '<span><b>' + s.pct_with_cut + '%</b> have cut price</span>' : '',
+      s.cut_again_30_pct ? '<span class="town-stat-hi"><b>' + s.cut_again_30_pct + '%</b> of cutters cut again within 30D</span>' : '',
+    ].filter(Boolean);
+    bar.innerHTML = parts.join('');
+    bar.style.display = 'flex';
+  } catch (e) { /* stats are a bonus — never break the page */ }
 }
 function setType(btn, type) {
   currentType = type;
@@ -965,15 +1000,26 @@ function populateTownDropdown() {
 }
 
 function openListing(url, mls, addr) {
-  var q = encodeURIComponent((addr || mls || '') + ' NJ Zillow');
-  window.open('https://www.google.com/search?q=' + q, '_blank');
+  if (url && url !== '#' && !url.includes('undefined')) {
+    window.open(url, '_blank');
+  } else {
+    var q = encodeURIComponent((addr || mls || '') + ' NJ Zillow');
+    window.open('https://www.google.com/search?q=' + q, '_blank');
+  }
+}
+function showToast(msg) {
+  const t = document.createElement('div');
+  t.textContent = msg;
+  t.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--bg3);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:11px;padding:8px 16px;z-index:9999;pointer-events:none;transition:opacity .3s;';
+  document.body.appendChild(t);
+  setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, 2000);
 }
 function share(addr, price, drop) {
   const text = drop > 0
     ? 'Price Drop: ' + addr + ' -- $' + price.toLocaleString() + ' (down $' + drop.toLocaleString() + ') #MOMlsPricingDashboard'
     : 'Active Listing: ' + addr + ' -- $' + price.toLocaleString() + ' #MOMlsPricingDashboard';
   if (navigator.share) navigator.share({ title: 'MOMLS Pricing Dashboard', text });
-  else { navigator.clipboard?.writeText(text); alert('Copied to clipboard!'); }
+  else { navigator.clipboard?.writeText(text); showToast('Copied to clipboard!'); }
 }
 
 // MODE TOGGLE
@@ -991,6 +1037,8 @@ function setMode(mode) {
   document.getElementById('headerArea').innerHTML = 'Monmouth &amp; Ocean County';
   document.querySelectorAll('.filter-btn').forEach((b,i) => b.classList.toggle('active', i===0));
   document.querySelectorAll('.bed-btn').forEach((b,i) => b.classList.toggle('active', i===0));
+  document.getElementById('alertCtaBar').style.display = 'none';
+  document.getElementById('townStatsBar').style.display = 'none';
   const btn = mode === 'all' ? document.getElementById('modeBtnAll') : document.getElementById('modeBtnDrops');
   const origText = btn.textContent;
   btn.textContent = '⏳ Loading...';
@@ -1018,6 +1066,7 @@ function resetFilters() {
   document.querySelectorAll('.filter-btn').forEach((b,i) => b.classList.toggle('active', i===0));
   document.querySelectorAll('.bed-btn').forEach((b,i) => b.classList.toggle('active', i===0));
   document.getElementById('alertCtaBar').style.display = 'none';
+  document.getElementById('townStatsBar').style.display = 'none';
   renderAreaTabs();
   renderListings(true);
 }
@@ -1332,6 +1381,10 @@ async function init() {
   renderAreaTabs();
   renderListings();
   subscribeRealtime();
+  // Close drop tooltip when clicking outside it (mobile tap-to-dismiss)
+  document.addEventListener('click', e => {
+    if (!e.target.classList.contains('history-trigger')) hideDropHistory();
+  });
   // Check for unsubscribe token in URL
   const unsub = new URLSearchParams(window.location.search).get('unsub');
   if (unsub) handleUnsubscribe(unsub);
