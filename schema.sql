@@ -206,12 +206,18 @@ CREATE OR REPLACE VIEW listing_outcomes AS
 SELECT
   l.id AS listing_id,
   l.address, l.city, l.county, l.property_type,
-  l.original_price, l.current_price, l.close_price,
+  l.original_price, l.current_price AS list_price, l.close_price,
   l.list_date, l.pending_date, l.close_date, l.status,
   (SELECT COUNT(*) FROM price_drops pd WHERE pd.listing_id = l.id)::INTEGER AS total_cuts,
+  -- Total capitulation: original list → close (only for listings we tracked active,
+  -- since the feed masks OriginalListPrice on closed records)
   CASE WHEN l.close_price > 0 AND l.original_price > 0
        THEN ROUND(((l.original_price - l.close_price)::NUMERIC / l.original_price) * 100, 2)
   END AS final_discount_pct,
+  -- Sold vs final asking: positive = over ask (market heat), negative = under ask
+  CASE WHEN l.close_price > 0 AND l.current_price > 0
+       THEN ROUND(((l.close_price - l.current_price)::NUMERIC / l.current_price) * 100, 2)
+  END AS sold_vs_list_pct,
   CASE WHEN l.close_date IS NOT NULL AND l.list_date IS NOT NULL
        THEN (l.close_date - l.list_date)
   END AS days_to_close
