@@ -477,7 +477,32 @@ function matchesSub(drop, sub) {
   return true;
 }
 
-function buildAlertEmail(drops, sub, isWeekly = false) {
+// Load per-town sold-outcome stats (city → heat) so alert emails can tell buyers
+// whether they're walking into a buyer's or seller's market. Fail-open to empty map.
+async function fetchTownHeat() {
+  try {
+    const { data } = await supabase
+      .from('town_outcomes')
+      .select('city, pct_at_or_over_ask, median_days_to_close, sold_count');
+    const map = new Map();
+    for (const r of (data || [])) map.set(r.city, r);
+    return map;
+  } catch { return new Map(); }
+}
+
+// Buyer-facing market-context badge for a drop's town. Subscribers are BUYERS, so a
+// buyer's market is good news (green), a seller's market is a caution (amber).
+function heatBadge(h) {
+  if (!h || h.sold_count < 25 || h.pct_at_or_over_ask == null) return '';
+  const p = h.pct_at_or_over_ask;
+  const [label, color] = p >= 55 ? ["Seller's market — expect competition", '#f59e0b']
+    : p <= 45 ? ["Buyer's market — room to negotiate", '#34d399']
+    : ['Balanced market', '#7a90b0'];
+  const dtc = h.median_days_to_close ? ` · ~${h.median_days_to_close}d to close` : '';
+  return `<div style="font-size:9px;color:${color};font-family:monospace;margin-top:10px;padding-top:8px;border-top:1px solid #1e2d45">📊 ${h.city}: ${p}% of homes sell at/over ask${dtc} · ${label}</div>`;
+}
+
+function buildAlertEmail(drops, sub, isWeekly = false, heat = new Map()) {
   const greeting  = sub.name ? `Hi ${sub.name},` : 'Hi there,';
   const watchArea = sub.towns?.length
     ? sub.towns.slice(0,3).join(', ') + (sub.towns.length > 3 ? ' & more' : '')
@@ -502,6 +527,7 @@ function buildAlertEmail(drops, sub, isWeekly = false) {
         <tr><td style="font-size:10px;color:#ff3b5c;padding:3px 0;font-weight:600">Drop</td><td style="font-size:11px;color:#ff3b5c;text-align:right;font-weight:600">-$${Math.round(d.drop_dollar||0).toLocaleString()} (-${parseFloat(d.drop_pct||0).toFixed(1)}%)</td></tr>
       </table>
       <a href="${url}" style="display:inline-block;margin-top:12px;padding:7px 14px;background:#0ea5e9;color:#fff;text-decoration:none;font-family:monospace;font-size:10px;font-weight:600;letter-spacing:.04em">View Listing →</a>
+      ${heatBadge(heat.get(d.city))}
     </div>`;
   }).join('');
 
@@ -533,6 +559,7 @@ async function notifySubscribers(drops) {
     if (error || !subs?.length) return;
 
     console.log(`\n📧 Matching ${drops.length} drop(s) against ${subs.length} subscriber(s)...`);
+    const heat = await fetchTownHeat();
     let sent = 0;
     for (const sub of subs) {
       // Rate limit: skip if emailed within last hour
@@ -546,7 +573,7 @@ async function notifySubscribers(drops) {
           subject: matches.length === 1
             ? `🏠 Price drop in ${matches[0].city} — down $${Math.round(matches[0].drop_dollar/1000)}K`
             : `🏠 ${matches.length} price drops in your areas`,
-          html: buildAlertEmail(matches, sub),
+          html: buildAlertEmail(matches, sub, false, heat),
         });
         await supabase.from('subscribers').update({ last_emailed_at: new Date().toISOString() }).eq('id', sub.id);
         sent++;
@@ -570,6 +597,7 @@ async function sendWeeklyDigest() {
     if (!subs?.length) return;
 
     console.log(`\n📰 Sending weekly digest to ${subs.length} subscriber(s)...`);
+    const heat = await fetchTownHeat();
     for (const sub of subs) {
       const matches = drops.filter(d => matchesSub(d, sub));
       if (!matches.length) continue;
@@ -578,7 +606,7 @@ async function sendWeeklyDigest() {
           from: RESEND_FROM,
           to:   sub.email,
           subject: `🏠 This week's price drops in your area — ${matches.length} new`,
-          html: buildAlertEmail(matches.slice(0, 10), sub, true),
+          html: buildAlertEmail(matches.slice(0, 10), sub, true, heat),
         });
         await supabase.from('subscribers').update({ last_emailed_at: new Date().toISOString() }).eq('id', sub.id);
         console.log(`  ✉️  Weekly → ${sub.email}`);
@@ -601,14 +629,23 @@ async function cleanOldSnapshots() {
   else console.log(`🗑️  Pruned ${count ?? '?'} old price snapshots (>30 days)`);
 }
 
-if (watchMode) {
-  console.log('👀 Watch mode: polling at 6:00 AM and 8:00 PM daily (Eastern)');
-  console.log('📰 Weekly digest: Sundays at 8:00 AM (Eastern)');
-  poll(); // Run immediately on start
-  cron.schedule('0 6  * * *',   poll,             { timezone: 'America/New_York' });
-  cron.schedule('0 20 * * *',   poll,             { timezone: 'America/New_York' });
-  cron.schedule('0 8  * * 0',   sendWeeklyDigest, { timezone: 'America/New_York' });
-  cron.schedule('0 3  * * 0',   cleanOldSnapshots,{ timezone: 'America/New_York' }); // Sundays 3 AM
-} else {
-  poll().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });
+// Only run the poller when executed directly (node poller.js). Guarding this lets
+// other scripts/tests import the helpers (buildAlertEmail, fetchTownHeat, …) without
+// kicking off a poll.
+const isMain = process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('/poller.js');
+
+if (isMain) {
+  if (watchMode) {
+    console.log('👀 Watch mode: polling at 6:00 AM and 8:00 PM daily (Eastern)');
+    console.log('📰 Weekly digest: Sundays at 8:00 AM (Eastern)');
+    poll(); // Run immediately on start
+    cron.schedule('0 6  * * *',   poll,             { timezone: 'America/New_York' });
+    cron.schedule('0 20 * * *',   poll,             { timezone: 'America/New_York' });
+    cron.schedule('0 8  * * 0',   sendWeeklyDigest, { timezone: 'America/New_York' });
+    cron.schedule('0 3  * * 0',   cleanOldSnapshots,{ timezone: 'America/New_York' }); // Sundays 3 AM
+  } else {
+    poll().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });
+  }
 }
+
+export { buildAlertEmail, heatBadge, fetchTownHeat, matchesSub, normalizeListing };

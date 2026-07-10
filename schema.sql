@@ -287,6 +287,45 @@ HAVING COUNT(*) >= 10;
 
 GRANT SELECT ON town_outcomes TO anon, authenticated;
 
+-- VIEW: drop_outcomes — THE GRADED-PREDICTION JOIN. One row per listing that had a
+-- detected price cut AND has since resolved (pending/closed). A price cut is our
+-- implicit "seller under pressure" signal; this view grades it against the actual
+-- outcome. Populates forward as tracked cutters close — the compounding moat.
+CREATE OR REPLACE VIEW drop_outcomes AS
+WITH first_drop AS (
+  SELECT DISTINCT ON (listing_id)
+    listing_id,
+    price_after  AS first_cut_price,   -- price right after the first cut
+    drop_pct     AS first_cut_pct,
+    detected_at  AS first_cut_at
+  FROM price_drops
+  ORDER BY listing_id, detected_at ASC
+),
+cut_counts AS (
+  SELECT listing_id, COUNT(*)::INTEGER AS cut_count FROM price_drops GROUP BY listing_id
+)
+SELECT
+  l.id AS listing_id, l.city, l.county, l.property_type,
+  fd.first_cut_at, fd.first_cut_price, fd.first_cut_pct, cc.cut_count,
+  l.current_price AS final_list, l.close_price, l.close_date, l.status,
+  -- How much MORE the seller gave up between the first cut and the close
+  CASE WHEN l.close_price > 0 AND fd.first_cut_price > 0
+       THEN ROUND(((fd.first_cut_price - l.close_price)::NUMERIC / fd.first_cut_price) * 100, 2)
+  END AS extra_discount_after_cut_pct,
+  -- Final sale vs last asking (positive = over ask)
+  CASE WHEN l.close_price > 0 AND l.current_price > 0
+       THEN ROUND(((l.close_price - l.current_price)::NUMERIC / l.current_price) * 100, 2)
+  END AS sold_vs_list_pct,
+  CASE WHEN l.close_date IS NOT NULL
+       THEN (l.close_date - fd.first_cut_at::date)
+  END AS days_cut_to_close
+FROM first_drop fd
+JOIN cut_counts cc ON cc.listing_id = fd.listing_id
+JOIN listings l    ON l.id = fd.listing_id
+WHERE l.status IN ('Pending','Closed') OR l.close_price IS NOT NULL;
+
+GRANT SELECT ON drop_outcomes TO anon, authenticated;
+
 -- SUBSCRIBERS: buyer alert preferences
 CREATE TABLE IF NOT EXISTS subscribers (
   id                BIGSERIAL PRIMARY KEY,
