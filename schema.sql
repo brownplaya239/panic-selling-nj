@@ -202,7 +202,9 @@ CREATE INDEX IF NOT EXISTS idx_status_events_listing ON listing_status_events(li
 ALTER TABLE listing_status_events ENABLE ROW LEVEL SECURITY;  -- no public policies: service key only
 
 -- VIEW: full lifecycle per listing that left the market — the grading substrate
-CREATE OR REPLACE VIEW listing_outcomes AS
+-- (DROP first: CREATE OR REPLACE can't rename the current_price→list_price column)
+DROP VIEW IF EXISTS listing_outcomes;
+CREATE VIEW listing_outcomes AS
 SELECT
   l.id AS listing_id,
   l.address, l.city, l.county, l.property_type,
