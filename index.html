@@ -272,6 +272,7 @@
   .town-stats-bar{display:none;gap:18px;padding:6px 16px;background:var(--bg2);border-bottom:1px solid var(--border);font-family:var(--mono);font-size:10px;color:var(--text2);overflow-x:auto;white-space:nowrap;}
   .town-stats-bar b{color:var(--text);font-weight:600;}
   .town-stat-hi{color:var(--cyan);}
+  .town-stat-sep{color:var(--text3);border-left:1px solid var(--border2);padding-left:16px;margin-left:2px;letter-spacing:.08em;font-size:9px;}
   /* AD CARD — ALERT SIGNUP */
   .ad-alert-card{display:grid;grid-template-columns:36px 1fr auto;align-items:center;gap:12px;border-bottom:1px solid var(--border);padding:14px 16px;background:rgba(14,165,233,.03);border-left:2px solid var(--accent2);cursor:default;}
   .ad-alert-icon{font-size:20px;text-align:center;}
@@ -980,26 +981,44 @@ function setArea(city, label) {
   renderListings(true);
 }
 
-// NEIGHBORHOOD INTELLIGENCE — per-town stats strip
+// NEIGHBORHOOD INTELLIGENCE — per-town stats strip (active market + sold outcomes)
 const _townStatsCache = {};
+const _townOutCache = {};
 async function showTownStats(city) {
   const bar = document.getElementById('townStatsBar');
   bar.style.display = 'none';
   try {
-    if (!_townStatsCache[city]) {
-      const { data, error } = await sb.from('town_stats').select('*').eq('city', city).single();
-      if (error || !data) return;
-      _townStatsCache[city] = data;
-    }
-    const s = _townStatsCache[city];
+    // Fetch active-market and sold-outcome stats in parallel; either may be absent.
+    const [activeRes, outRes] = await Promise.all([
+      _townStatsCache[city] !== undefined ? Promise.resolve({ data: _townStatsCache[city] })
+        : sb.from('town_stats').select('*').eq('city', city).maybeSingle(),
+      _townOutCache[city] !== undefined ? Promise.resolve({ data: _townOutCache[city] })
+        : sb.from('town_outcomes').select('*').eq('city', city).maybeSingle().then(r => r, () => ({ data: null })),
+    ]);
+    _townStatsCache[city] = activeRes?.data ?? null;
+    _townOutCache[city]   = outRes?.data ?? null;
     if (currentArea !== city) return; // user moved on while we fetched
-    const parts = [
-      '<span><b>' + s.active_count + '</b> active</span>',
-      s.median_price ? '<span>median <b>' + fmtM(s.median_price) + '</b></span>' : '',
-      (s.median_dom || s.median_dom === 0) ? '<span>median <b>' + s.median_dom + 'D</b> on market</span>' : '',
-      (s.pct_with_cut || s.pct_with_cut === 0) ? '<span><b>' + s.pct_with_cut + '%</b> have cut price</span>' : '',
-      s.cut_again_30_pct ? '<span class="town-stat-hi"><b>' + s.cut_again_30_pct + '%</b> of cutters cut again within 30D</span>' : '',
-    ].filter(Boolean);
+
+    const s = _townStatsCache[city];
+    const o = _townOutCache[city];
+    const parts = [];
+    if (s) {
+      parts.push('<span><b>' + s.active_count + '</b> active</span>');
+      if (s.median_price)                              parts.push('<span>median <b>' + fmtM(s.median_price) + '</b></span>');
+      if (s.median_dom || s.median_dom === 0)          parts.push('<span>median <b>' + s.median_dom + 'D</b> on market</span>');
+      if (s.pct_with_cut || s.pct_with_cut === 0)      parts.push('<span><b>' + s.pct_with_cut + '%</b> have cut price</span>');
+      if (s.cut_again_30_pct)                          parts.push('<span class="town-stat-hi"><b>' + s.cut_again_30_pct + '%</b> cut again ≤30D</span>');
+    }
+    if (o && o.sold_count >= 25) {
+      // Market-heat read from % selling at/over ask
+      const heat = o.pct_at_or_over_ask >= 55 ? '🔥 seller' : o.pct_at_or_over_ask <= 45 ? '🧊 buyer' : '⚖ balanced';
+      parts.push('<span class="town-stat-sep">SOLD 12mo:</span>');
+      parts.push('<span><b>' + o.sold_count.toLocaleString() + '</b> closed</span>');
+      if (o.median_close)                              parts.push('<span>median <b>' + fmtM(o.median_close) + '</b></span>');
+      if (o.median_days_to_close)                      parts.push('<span><b>' + o.median_days_to_close + 'D</b> to close</span>');
+      if (o.pct_at_or_over_ask != null)                parts.push('<span class="town-stat-hi"><b>' + o.pct_at_or_over_ask + '%</b> at/over ask · ' + heat + '</span>');
+    }
+    if (!parts.length) return;
     bar.innerHTML = parts.join('');
     bar.style.display = 'flex';
   } catch (e) { /* stats are a bonus — never break the page */ }

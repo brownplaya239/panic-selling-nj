@@ -253,6 +253,38 @@ GROUP BY l.city;
 
 GRANT SELECT ON town_stats TO anon, authenticated;
 
+-- VIEW: per-town SOLD outcome stats over the last 12 months (from the closed-sales
+-- backfill) — days-to-close, sold-vs-ask, and market-heat. Min-N gate at 10 so we
+-- never surface a noisy stat; the frontend applies a stronger confidence gate.
+CREATE OR REPLACE VIEW town_outcomes AS
+WITH sold AS (
+  SELECT
+    city,
+    close_price,
+    CASE WHEN close_date IS NOT NULL AND list_date IS NOT NULL
+              AND (close_date - list_date) BETWEEN 0 AND 1825
+         THEN (close_date - list_date) END                                    AS dtc,
+    CASE WHEN current_price > 0
+         THEN ((close_price - current_price)::NUMERIC / current_price) * 100 END AS svl,
+    CASE WHEN current_price > 0 AND close_price >= current_price THEN 1
+         WHEN current_price > 0 THEN 0 END                                    AS at_or_over
+  FROM listings
+  WHERE status = 'Closed' AND close_price >= 200000
+    AND close_date >= CURRENT_DATE - INTERVAL '12 months'
+)
+SELECT
+  city,
+  COUNT(*)::INTEGER                                                           AS sold_count,
+  PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY close_price)::BIGINT            AS median_close,
+  PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY dtc)::INTEGER                   AS median_days_to_close,
+  ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY svl)::NUMERIC, 1)         AS median_sold_vs_list,
+  ROUND(100.0 * SUM(at_or_over) / NULLIF(COUNT(at_or_over), 0))::INTEGER      AS pct_at_or_over_ask
+FROM sold
+GROUP BY city
+HAVING COUNT(*) >= 10;
+
+GRANT SELECT ON town_outcomes TO anon, authenticated;
+
 -- SUBSCRIBERS: buyer alert preferences
 CREATE TABLE IF NOT EXISTS subscribers (
   id                BIGSERIAL PRIMARY KEY,
