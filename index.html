@@ -273,6 +273,7 @@
   .town-stats-bar b{color:var(--text);font-weight:600;}
   .town-stat-hi{color:var(--cyan);}
   .town-stat-sep{color:var(--text3);border-left:1px solid var(--border2);padding-left:16px;margin-left:2px;letter-spacing:.08em;font-size:9px;}
+  .town-stat-edge{color:var(--amber,#f59e0b);}
   /* AD CARD — ALERT SIGNUP */
   .ad-alert-card{display:grid;grid-template-columns:36px 1fr auto;align-items:center;gap:12px;border-bottom:1px solid var(--border);padding:14px 16px;background:rgba(14,165,233,.03);border-left:2px solid var(--accent2);cursor:default;}
   .ad-alert-icon{font-size:20px;text-align:center;}
@@ -984,23 +985,28 @@ function setArea(city, label) {
 // NEIGHBORHOOD INTELLIGENCE — per-town stats strip (active market + sold outcomes)
 const _townStatsCache = {};
 const _townOutCache = {};
+const _cutEdgeCache = {};
 async function showTownStats(city) {
   const bar = document.getElementById('townStatsBar');
   bar.style.display = 'none';
   try {
-    // Fetch active-market and sold-outcome stats in parallel; either may be absent.
-    const [activeRes, outRes] = await Promise.all([
+    // Fetch active-market, sold-outcome, and cut-edge stats in parallel; any may be absent.
+    const [activeRes, outRes, edgeRes] = await Promise.all([
       _townStatsCache[city] !== undefined ? Promise.resolve({ data: _townStatsCache[city] })
         : sb.from('town_stats').select('*').eq('city', city).maybeSingle(),
       _townOutCache[city] !== undefined ? Promise.resolve({ data: _townOutCache[city] })
         : sb.from('town_outcomes').select('*').eq('city', city).maybeSingle().then(r => r, () => ({ data: null })),
+      _cutEdgeCache[city] !== undefined ? Promise.resolve({ data: _cutEdgeCache[city] })
+        : sb.from('cut_edge').select('*').eq('grain', 'town').eq('area', city).maybeSingle().then(r => r, () => ({ data: null })),
     ]);
     _townStatsCache[city] = activeRes?.data ?? null;
     _townOutCache[city]   = outRes?.data ?? null;
+    _cutEdgeCache[city]   = edgeRes?.data ?? null;
     if (currentArea !== city) return; // user moved on while we fetched
 
     const s = _townStatsCache[city];
     const o = _townOutCache[city];
+    const ce = _cutEdgeCache[city];
     const parts = [];
     if (s) {
       parts.push('<span><b>' + s.active_count + '</b> active</span>');
@@ -1017,6 +1023,10 @@ async function showTownStats(city) {
       if (o.median_close)                              parts.push('<span>median <b>' + fmtM(o.median_close) + '</b></span>');
       if (o.median_days_to_close)                      parts.push('<span><b>' + o.median_days_to_close + 'D</b> to close</span>');
       if (o.pct_at_or_over_ask != null)                parts.push('<span class="town-stat-hi"><b>' + o.pct_at_or_over_ask + '%</b> at/over ask · ' + heat + '</span>');
+    }
+    // The learned edge: homes that CUT price sell worse than the town baseline
+    if (ce && ce.edge_over_ask_pp != null && (ce.cut_n + ce.base_n) >= 30) {
+      parts.push('<span class="town-stat-edge">📉 cut homes: <b>' + ce.cut_over_ask_pct + '%</b> at/over ask (' + (ce.edge_over_ask_pp > 0 ? '+' : '') + ce.edge_over_ask_pp + 'pp vs town)</span>');
     }
     if (!parts.length) return;
     bar.innerHTML = parts.join('');

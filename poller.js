@@ -490,6 +490,26 @@ async function fetchTownHeat() {
   } catch { return new Map(); }
 }
 
+// Load the learned cut-edge (county grain) so alert emails can tell a buyer what a
+// price cut is actually worth in that market. Fail-open to empty map.
+async function fetchCutEdge() {
+  try {
+    const { data } = await supabase
+      .from('cut_edge').select('area, cut_over_ask_pct, cut_sold_vs_list_pct, baseline_over_ask_pct, cut_n')
+      .eq('grain', 'county');
+    const map = new Map();
+    for (const r of (data || [])) map.set(r.area, r);
+    return map;
+  } catch { return new Map(); }
+}
+
+// The learned edge, buyer-framed: a cut home sells below ask more often than the market.
+function cutEdgeLine(ce) {
+  if (!ce || ce.cut_n < 30 || ce.cut_over_ask_pct == null) return '';
+  const belowAsk = 100 - ce.cut_over_ask_pct;
+  return `<div style="font-size:9px;color:#34d399;font-family:monospace;margin-top:6px">📉 Homes that cut price in ${ce.area} County sell <strong>below ask ${belowAsk}%</strong> of the time (vs ${100 - ce.baseline_over_ask_pct}% market-wide) — you likely have room to negotiate.</div>`;
+}
+
 // Buyer-facing market-context badge for a drop's town. Subscribers are BUYERS, so a
 // buyer's market is good news (green), a seller's market is a caution (amber).
 function heatBadge(h) {
@@ -502,7 +522,7 @@ function heatBadge(h) {
   return `<div style="font-size:9px;color:${color};font-family:monospace;margin-top:10px;padding-top:8px;border-top:1px solid #1e2d45">📊 ${h.city}: ${p}% of homes sell at/over ask${dtc} · ${label}</div>`;
 }
 
-function buildAlertEmail(drops, sub, isWeekly = false, heat = new Map()) {
+function buildAlertEmail(drops, sub, isWeekly = false, heat = new Map(), cutEdge = new Map()) {
   const greeting  = sub.name ? `Hi ${sub.name},` : 'Hi there,';
   const watchArea = sub.towns?.length
     ? sub.towns.slice(0,3).join(', ') + (sub.towns.length > 3 ? ' & more' : '')
@@ -528,6 +548,7 @@ function buildAlertEmail(drops, sub, isWeekly = false, heat = new Map()) {
       </table>
       <a href="${url}" style="display:inline-block;margin-top:12px;padding:7px 14px;background:#0ea5e9;color:#fff;text-decoration:none;font-family:monospace;font-size:10px;font-weight:600;letter-spacing:.04em">View Listing →</a>
       ${heatBadge(heat.get(d.city))}
+      ${cutEdgeLine(cutEdge.get(d.county))}
     </div>`;
   }).join('');
 
@@ -559,7 +580,7 @@ async function notifySubscribers(drops) {
     if (error || !subs?.length) return;
 
     console.log(`\n📧 Matching ${drops.length} drop(s) against ${subs.length} subscriber(s)...`);
-    const heat = await fetchTownHeat();
+    const [heat, cutEdge] = await Promise.all([fetchTownHeat(), fetchCutEdge()]);
     let sent = 0;
     for (const sub of subs) {
       // Rate limit: skip if emailed within last hour
@@ -573,7 +594,7 @@ async function notifySubscribers(drops) {
           subject: matches.length === 1
             ? `🏠 Price drop in ${matches[0].city} — down $${Math.round(matches[0].drop_dollar/1000)}K`
             : `🏠 ${matches.length} price drops in your areas`,
-          html: buildAlertEmail(matches, sub, false, heat),
+          html: buildAlertEmail(matches, sub, false, heat, cutEdge),
         });
         await supabase.from('subscribers').update({ last_emailed_at: new Date().toISOString() }).eq('id', sub.id);
         sent++;
@@ -597,7 +618,7 @@ async function sendWeeklyDigest() {
     if (!subs?.length) return;
 
     console.log(`\n📰 Sending weekly digest to ${subs.length} subscriber(s)...`);
-    const heat = await fetchTownHeat();
+    const [heat, cutEdge] = await Promise.all([fetchTownHeat(), fetchCutEdge()]);
     for (const sub of subs) {
       const matches = drops.filter(d => matchesSub(d, sub));
       if (!matches.length) continue;
@@ -606,7 +627,7 @@ async function sendWeeklyDigest() {
           from: RESEND_FROM,
           to:   sub.email,
           subject: `🏠 This week's price drops in your area — ${matches.length} new`,
-          html: buildAlertEmail(matches.slice(0, 10), sub, true, heat),
+          html: buildAlertEmail(matches.slice(0, 10), sub, true, heat, cutEdge),
         });
         await supabase.from('subscribers').update({ last_emailed_at: new Date().toISOString() }).eq('id', sub.id);
         console.log(`  ✉️  Weekly → ${sub.email}`);
