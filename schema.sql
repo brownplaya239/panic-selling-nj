@@ -335,7 +335,7 @@ CREATE OR REPLACE VIEW cut_edge AS
 WITH closed AS (
   SELECT l.id, l.city, l.county,
     ((l.close_price - l.current_price)::NUMERIC / l.current_price) * 100 AS svl,
-    (l.close_price >= l.current_price)::int                              AS over_ask,
+    CASE WHEN l.close_price >= l.current_price THEN 1.0 ELSE 0.0 END     AS over_ask,
     EXISTS (SELECT 1 FROM price_drops pd WHERE pd.listing_id = l.id)     AS had_cut
   FROM listings l
   WHERE l.status = 'Closed' AND l.close_price >= 200000 AND l.current_price > 0
@@ -348,8 +348,8 @@ cty AS (
     AVG(over_ask) FILTER (WHERE NOT had_cut) AS base_over,
     AVG(svl)      FILTER (WHERE had_cut)      AS cut_svl,
     AVG(svl)      FILTER (WHERE NOT had_cut)  AS base_svl,
-    COUNT(*) FILTER (WHERE had_cut)::int      AS cut_n,
-    COUNT(*) FILTER (WHERE NOT had_cut)::int  AS base_n
+    COUNT(*) FILTER (WHERE had_cut)          AS cut_n,
+    COUNT(*) FILTER (WHERE NOT had_cut)      AS base_n
   FROM closed GROUP BY county
 ),
 twn AS (
@@ -358,24 +358,26 @@ twn AS (
     AVG(svl)      FILTER (WHERE had_cut)      AS cut_svl,
     AVG(over_ask) FILTER (WHERE NOT had_cut) AS base_over,
     AVG(svl)      FILTER (WHERE NOT had_cut)  AS base_svl,
-    COUNT(*) FILTER (WHERE had_cut)::int      AS cut_n,
-    COUNT(*) FILTER (WHERE NOT had_cut)::int  AS base_n
+    COUNT(*) FILTER (WHERE had_cut)          AS cut_n,
+    COUNT(*) FILTER (WHERE NOT had_cut)      AS base_n
   FROM closed GROUP BY city, county
 )
-SELECT 'county' AS grain, c.county AS area, c.county, c.cut_n, c.base_n,
+SELECT 'county' AS grain, c.county AS area, c.county,
+  c.cut_n::int AS cut_n, c.base_n::int AS base_n,
   ROUND(100 * c.cut_over)::int                        AS cut_over_ask_pct,
   ROUND(100 * c.base_over)::int                       AS baseline_over_ask_pct,
   ROUND(100 * (c.cut_over - c.base_over))::int        AS edge_over_ask_pp,
-  ROUND(c.cut_svl::numeric, 2)                        AS cut_sold_vs_list_pct,
-  ROUND(c.base_svl::numeric, 2)                       AS baseline_sold_vs_list_pct
+  ROUND(c.cut_svl, 2)                                 AS cut_sold_vs_list_pct,
+  ROUND(c.base_svl, 2)                                AS baseline_sold_vs_list_pct
 FROM cty c
 UNION ALL
-SELECT 'town', t.city, t.county, t.cut_n, t.base_n,
+SELECT 'town', t.city, t.county,
+  t.cut_n::int AS cut_n, t.base_n::int AS base_n,
   ROUND(100 * ((t.cut_n * COALESCE(t.cut_over, c.cut_over) + 20 * c.cut_over) / (t.cut_n + 20)))::int          AS cut_over_ask_pct,
   ROUND(100 * COALESCE(t.base_over, c.base_over))::int                                                        AS baseline_over_ask_pct,
   ROUND(100 * (((t.cut_n * COALESCE(t.cut_over, c.cut_over) + 20 * c.cut_over) / (t.cut_n + 20)) - COALESCE(t.base_over, c.base_over)))::int AS edge_over_ask_pp,
-  ROUND(((t.cut_n * COALESCE(t.cut_svl, c.cut_svl) + 20 * c.cut_svl) / (t.cut_n + 20))::numeric, 2)           AS cut_sold_vs_list_pct,
-  ROUND(COALESCE(t.base_svl, c.base_svl)::numeric, 2)                                                         AS baseline_sold_vs_list_pct
+  ROUND((t.cut_n * COALESCE(t.cut_svl, c.cut_svl) + 20 * c.cut_svl) / (t.cut_n + 20), 2)                      AS cut_sold_vs_list_pct,
+  ROUND(COALESCE(t.base_svl, c.base_svl), 2)                                                                  AS baseline_sold_vs_list_pct
 FROM twn t JOIN cty c ON c.county = t.county
 WHERE (t.cut_n + t.base_n) >= 30;
 
