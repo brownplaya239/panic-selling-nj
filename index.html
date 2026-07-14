@@ -1024,8 +1024,9 @@ async function showTownStats(city) {
       if (o.median_days_to_close)                      parts.push('<span><b>' + o.median_days_to_close + 'D</b> to close</span>');
       if (o.pct_at_or_over_ask != null)                parts.push('<span class="town-stat-hi"><b>' + o.pct_at_or_over_ask + '%</b> at/over ask · ' + heat + '</span>');
     }
-    // The learned edge: homes that CUT price sell worse than the town baseline
-    if (ce && ce.edge_over_ask_pp != null && (ce.cut_n + ce.base_n) >= 30) {
+    // The learned edge: homes that CUT price sell worse than the town baseline.
+    // Gate on the CUT cohort (not total sales) — the edge is a claim about cutters.
+    if (ce && ce.edge_over_ask_pp != null && ce.cut_n >= 10 && (ce.cut_n + ce.base_n) >= 30) {
       parts.push('<span class="town-stat-edge">📉 cut homes: <b>' + ce.cut_over_ask_pct + '%</b> at/over ask (' + (ce.edge_over_ask_pp > 0 ? '+' : '') + ce.edge_over_ask_pp + 'pp vs town)</span>');
     }
     if (!parts.length) return;

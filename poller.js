@@ -669,4 +669,4 @@ if (isMain) {
   }
 }
 
-export { buildAlertEmail, heatBadge, fetchTownHeat, matchesSub, normalizeListing };
+export { buildAlertEmail, heatBadge, cutEdgeLine, fetchTownHeat, fetchCutEdge, matchesSub, normalizeListing };

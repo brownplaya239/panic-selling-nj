@@ -379,7 +379,10 @@ SELECT 'town', t.city, t.county,
   ROUND((t.cut_n * COALESCE(t.cut_svl, c.cut_svl) + 20 * c.cut_svl) / (t.cut_n + 20), 2)                      AS cut_sold_vs_list_pct,
   ROUND(COALESCE(t.base_svl, c.base_svl), 2)                                                                  AS baseline_sold_vs_list_pct
 FROM twn t JOIN cty c ON c.county = t.county
-WHERE (t.cut_n + t.base_n) >= 30;
+-- Min-N gate must bind on the CUT cohort, not total closings: the edge is a
+-- statement about cutters, so a town with 1 cut and 200 normal sales has no edge
+-- to report no matter how many sales it has. Towns below this simply don't appear.
+WHERE t.cut_n >= 10 AND (t.cut_n + t.base_n) >= 30;
 
 GRANT SELECT ON cut_edge TO anon, authenticated;
 
