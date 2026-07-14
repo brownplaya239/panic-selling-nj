@@ -212,6 +212,46 @@
   .comps-table .c-over{color:var(--green);}
   .comps-table .c-under{color:var(--red);}
   .comps-note{font-family:var(--mono);font-size:9px;color:var(--text3);margin-top:10px;line-height:1.5;}
+  /* BEST TOWNS VIEW */
+  #modeBtnTowns.active{background:var(--cyan);border-color:var(--cyan);color:#0b0f1a;font-weight:600;opacity:1;}
+  .towns-wrap{padding:18px 16px;max-width:1000px;}
+  .towns-intro{font-family:var(--mono);font-size:10px;color:var(--text3);margin-bottom:12px;line-height:1.55;}
+  .towns-banner{display:none;gap:12px;align-items:flex-start;padding:11px 14px;background:rgba(255,59,92,.06);border:1px solid var(--border);border-left:2px solid var(--red);margin-bottom:16px;}
+  .towns-banner.on{display:flex;}
+  .tb-k{flex-shrink:0;font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.1em;color:var(--red);padding-top:2px;}
+  .tb-v{font-family:var(--mono);font-size:11px;color:var(--text2);line-height:1.55;}
+  .tb-v b{color:var(--text);} .tb-v b.hi{color:var(--red);}
+  .town-row{display:grid;grid-template-columns:32px 1fr 150px;gap:12px;padding:14px 4px;border-bottom:1px solid var(--border);align-items:center;}
+  .town-row.hl{background:rgba(56,189,248,.04);border-left:2px solid var(--cyan);padding-left:10px;}
+  .tr-rank{font-family:var(--mono);font-size:17px;font-weight:700;color:var(--text3);text-align:center;}
+  .tr-name{font-size:13px;font-weight:600;color:var(--text);margin-bottom:7px;display:flex;align-items:center;gap:7px;flex-wrap:wrap;}
+  .tr-cty{font-family:var(--mono);font-size:9px;color:var(--text3);font-weight:400;}
+  .tr-tag{font-family:var(--mono);font-size:8px;letter-spacing:.06em;color:var(--cyan);border:1px solid rgba(56,189,248,.35);padding:1px 5px;}
+  .tr-bars{display:flex;flex-direction:column;gap:3px;margin-bottom:7px;}
+  .tr-bar{display:grid;grid-template-columns:92px 1fr 36px;gap:8px;align-items:center;font-family:var(--mono);}
+  .tr-bl{font-size:9px;color:var(--text3);}
+  .tr-bt{height:5px;background:var(--bg2);border:1px solid var(--border);position:relative;}
+  .tr-bt i{position:absolute;left:0;top:0;bottom:0;background:var(--cyan);opacity:.65;}
+  .tr-bv{font-size:9px;color:var(--text2);text-align:right;}
+  .tr-edge{font-family:var(--mono);font-size:9.5px;color:var(--text2);line-height:1.5;border-top:1px dashed var(--border);padding-top:6px;}
+  .tr-edge b{color:var(--text);}
+  .tr-pp{color:var(--amber,#f59e0b);font-weight:600;}
+  .tr-pp.big{color:var(--red);}
+  .tr-n{color:var(--text3);}
+  .tr-right{text-align:right;}
+  .tr-score{font-size:20px;font-weight:700;color:var(--green);line-height:1;}
+  .tr-slbl{font-family:var(--mono);font-size:8px;letter-spacing:.1em;color:var(--text3);margin-top:2px;}
+  .tr-meta{font-family:var(--mono);font-size:9px;color:var(--text2);margin-top:6px;}
+  .btn-town-alert{margin-top:8px;padding:5px 10px;background:none;border:1px solid rgba(56,189,248,.4);color:var(--cyan);font-family:var(--mono);font-size:9px;cursor:pointer;white-space:nowrap;transition:all .12s;}
+  .btn-town-alert:hover{background:rgba(56,189,248,.08);}
+  .towns-foot{font-family:var(--mono);font-size:9px;color:var(--text3);line-height:1.6;margin-top:14px;padding:11px 12px;background:var(--bg2);border:1px solid var(--border);}
+  .towns-foot b{color:var(--text2);}
+  @media(max-width:600px){
+    .town-row{grid-template-columns:24px 1fr;gap:8px;}
+    .tr-right{grid-column:2;text-align:left;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;}
+    .tr-meta{margin-top:0;}
+    .tr-bar{grid-template-columns:78px 1fr 32px;}
+  }
 
   /* SUBSCRIBE MODAL */
   .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(3px);}
@@ -355,6 +395,7 @@
   <button class="mode-btn active" id="modeBtnDrops" onclick="setMode('drops')">▼ Price Drops</button>
   <button class="mode-btn" id="modeBtnAll" onclick="setMode('all')">▣ All Active Listings</button>
   <button class="mode-btn" id="modeBtnComps" onclick="setMode('comps')">⌂ Sold Comps</button>
+  <button class="mode-btn" id="modeBtnTowns" onclick="setMode('towns')">★ Best Towns to Buy</button>
 </div>
 
 <!-- FILTER BAR -->
@@ -432,6 +473,16 @@
     </div>
     <div class="comps-err" id="compsErr"></div>
     <div id="compsResults"></div>
+  </div>
+</div>
+
+<!-- BEST TOWNS VIEW -->
+<div id="townsView" style="display:none">
+  <div class="towns-wrap">
+    <div class="towns-intro">Towns ranked by buyer leverage — how often homes sell under ask, how long they sit, and how much further a seller drops once they've cut. Built from the last 12 months of closed MLS sales.</div>
+    <div class="towns-banner" id="townsBanner"></div>
+    <div id="townsResults"><div class="loading"><span class="spinner"></span>Scoring towns...</div></div>
+    <div class="towns-foot">Only towns with <b>10+ closed sales that had a price cut</b> appear — thin samples are excluded rather than shown as noise. Cut-rates are shrunk toward the county average so a small town can't post a false edge. Score is an editorial blend of the measured stats, not a prediction.</div>
   </div>
 </div>
 
@@ -1104,19 +1155,28 @@ function setMode(mode) {
   document.getElementById('modeBtnDrops').classList.toggle('active', mode === 'drops');
   document.getElementById('modeBtnAll').classList.toggle('active', mode === 'all');
   document.getElementById('modeBtnComps').classList.toggle('active', mode === 'comps');
-  // Comps is a separate view: swap the list UI out entirely
-  const listView = mode !== 'comps';
+  document.getElementById('modeBtnTowns').classList.toggle('active', mode === 'towns');
+  // 'comps' and 'towns' are standalone panels: swap the list UI out entirely
+  const listView = mode !== 'comps' && mode !== 'towns';
   document.querySelector('.filter-bar').style.display     = listView ? '' : 'none';
   document.querySelector('.bed-filter').style.display     = listView ? '' : 'none';
   document.querySelector('.area-tabs-wrap').style.display = listView ? '' : 'none';
   document.querySelector('.ts-bar').style.display         = listView ? '' : 'none';
   document.getElementById('listings').style.display       = listView ? '' : 'none';
-  document.getElementById('compsView').style.display      = listView ? 'none' : 'block';
-  if (mode === 'comps') {
+  document.getElementById('compsView').style.display      = mode === 'comps' ? 'block' : 'none';
+  document.getElementById('townsView').style.display      = mode === 'towns' ? 'block' : 'none';
+  if (!listView) {
     document.getElementById('alertCtaBar').style.display  = 'none';
     document.getElementById('townStatsBar').style.display = 'none';
-    document.getElementById('headerMode').textContent     = 'Sold Comps';
+  }
+  if (mode === 'comps') {
+    document.getElementById('headerMode').textContent = 'Sold Comps';
     setTimeout(() => document.getElementById('compAddress').focus(), 50);
+    return;
+  }
+  if (mode === 'towns') {
+    document.getElementById('headerMode').textContent = 'Best Towns to Buy';
+    renderBestTowns();
     return;
   }
   currentArea = 'all';
@@ -1211,6 +1271,86 @@ function renderComps(r) {
     + '<thead><tr><th>ADDRESS</th><th>DIST</th><th>SOLD</th><th>PRICE</th><th>VS LIST</th><th>BD/BA</th><th>SQFT</th><th>$/SF</th><th>TYPE</th></tr></thead>'
     + '<tbody>' + rows + '</tbody></table></div>'
     + '<div class="comps-note">Closed-sale data from MORMLS. Comps ranked by distance, similarity, and recency. This is market data, not an appraisal.</div>';
+}
+
+// BEST TOWNS TO BUY — ranks towns by buyer leverage from the three outcome views
+let _townsLoaded = false;
+async function renderBestTowns() {
+  if (_townsLoaded) return; // data is slow-moving; render once per session
+  const resEl = document.getElementById('townsResults');
+  try {
+    const [edgeRes, outRes, statRes, ctyRes] = await Promise.all([
+      sb.from('cut_edge').select('*').eq('grain', 'town'),
+      sb.from('town_outcomes').select('city,sold_count,median_close,median_days_to_close,pct_at_or_over_ask'),
+      sb.from('town_stats').select('city,active_count,pct_with_cut,cut_again_30_pct'),
+      sb.from('cut_edge').select('*').eq('grain', 'county'),
+    ]);
+    const edges = edgeRes.data || [];
+    if (!edges.length) {
+      resEl.innerHTML = '<div class="loading">Not enough closed sales with a price cut yet — this fills in as tracked listings sell.</div>';
+      _townsLoaded = true;
+      return;
+    }
+    const O = Object.fromEntries((outRes.data || []).map(o => [o.city, o]));
+    const S = Object.fromEntries((statRes.data || []).map(s => [s.city, s]));
+
+    // Headline: the county with the strongest measured cut penalty
+    const cty = (ctyRes.data || []).slice().sort((a,b) => a.edge_over_ask_pp - b.edge_over_ask_pp)[0];
+    if (cty) {
+      document.getElementById('townsBanner').className = 'towns-banner on';
+      document.getElementById('townsBanner').innerHTML =
+        '<span class="tb-k">THE EDGE</span><span class="tb-v">Homes that <b>cut their price</b> sell at/over ask just <b class="hi">'
+        + cty.cut_over_ask_pct + '%</b> of the time in ' + cty.area + ' County — vs <b>' + cty.baseline_over_ask_pct
+        + '%</b> for everything else. A price cut is a real signal.</span>';
+    }
+
+    const rows = edges.map(e => {
+      const o = O[e.area] || {}, s = S[e.area] || {};
+      const softness   = 100 - (o.pct_at_or_over_ask ?? 50);   // % selling under ask
+      const slowness   = Math.min(100, o.median_days_to_close ?? 70);
+      const cutPress   = s.pct_with_cut ?? 0;                  // % of active inventory that has cut
+      const cutterDisc = -(parseFloat(e.cut_sold_vs_list_pct) || 0);
+      const score = Math.round(softness * 0.9 + slowness * 0.35 + cutPress * 0.8 + cutterDisc * 4);
+      return { ...e, o, s, softness, slowness, cutPress, score };
+    }).sort((a, b) => b.score - a.score);
+
+    // Editorial callouts: strongest sample, and the biggest measured cut penalty
+    const bestSample = rows.reduce((a, b) => (b.cut_n > a.cut_n ? b : a), rows[0]);
+    const biggestPen = rows.reduce((a, b) => (b.edge_over_ask_pp < a.edge_over_ask_pp ? b : a), rows[0]);
+
+    resEl.innerHTML = rows.map((r, i) => {
+      const tags = [];
+      if (r === bestSample) tags.push('<span class="tr-tag">STRONGEST SIGNAL</span>');
+      if (r === biggestPen && r !== bestSample) tags.push('<span class="tr-tag">BIGGEST CUT PENALTY</span>');
+      const bar = (label, pct, val) =>
+        '<div class="tr-bar"><span class="tr-bl">' + label + '</span><span class="tr-bt"><i style="width:'
+        + Math.max(0, Math.min(100, pct)) + '%"></i></span><span class="tr-bv">' + val + '</span></div>';
+      const ppCls = r.edge_over_ask_pp <= -15 ? 'tr-pp big' : 'tr-pp';
+      return '<div class="town-row' + (r === bestSample ? ' hl' : '') + '">'
+        + '<div class="tr-rank">' + (i + 1) + '</div>'
+        + '<div>'
+        + '<div class="tr-name">' + r.area + ' <span class="tr-cty">' + r.county + ' Co.</span> ' + tags.join('') + '</div>'
+        + '<div class="tr-bars">'
+        + bar('Sell under ask', r.softness, r.softness + '%')
+        + bar('Days to close', r.slowness, (r.o.median_days_to_close ?? '--') + 'd')
+        + bar('Listings cutting', r.cutPress, r.cutPress + '%')
+        + '</div>'
+        + '<div class="tr-edge">📉 Cut homes: <b>' + r.cut_over_ask_pct + '%</b> at/over ask vs <b>'
+        + r.baseline_over_ask_pct + '%</b> baseline <span class="' + ppCls + '">'
+        + (r.edge_over_ask_pp > 0 ? '+' : '') + r.edge_over_ask_pp + 'pp</span> · cutters land <b>'
+        + parseFloat(r.cut_sold_vs_list_pct).toFixed(1) + '%</b> vs ask <span class="tr-n">n=' + r.cut_n + '</span></div>'
+        + '</div>'
+        + '<div class="tr-right">'
+        + '<div class="tr-score">' + r.score + '</div><div class="tr-slbl">SCORE</div>'
+        + '<div class="tr-meta">' + (r.o.median_close ? fmtM(r.o.median_close) + ' median' : '') + '</div>'
+        + '<button class="btn-town-alert" onclick="openSubscribeModal(\'' + r.area.replace(/'/g, "\\'") + '\',\'' + r.county + '\')">🔔 Alerts for ' + r.area + ' →</button>'
+        + '</div>'
+        + '</div>';
+    }).join('');
+    _townsLoaded = true;
+  } catch (e) {
+    resEl.innerHTML = '<div class="loading">Could not load town rankings — please try again.</div>';
+  }
 }
 
 // RESET ALL FILTERS
@@ -1322,13 +1462,16 @@ function _resetSub() {
            maxDom:null, alertOn:'drops', minDropPct:1, frequency:'instant' };
 }
 
-function openSubscribeModal(prefillCity) {
+function openSubscribeModal(prefillCity, prefillCounty) {
   _resetSub();
   // Pre-fill from active filters
   const county = document.getElementById('countySelect').value;
   if (county !== 'all') _sub.counties = [county];
   if (currentArea !== 'all') _sub.towns = [currentArea];
   if (prefillCity) _sub.towns = [prefillCity];
+  // A town prefill must carry its county — step 1 requires one, and the town
+  // checkbox list is built from the selected counties.
+  if (prefillCounty) _sub.counties = [prefillCounty];
   if (currentType === 'sf')    _sub.propertyType = 'Single Family';
   else if (currentType === 'condo') _sub.propertyType = 'Condo';
   if (currentBed !== 'any') _sub.minBeds = currentBed === '6+' ? 6 : parseInt(currentBed);
