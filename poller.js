@@ -428,6 +428,13 @@ async function poll() {
   try {
     const rawListings = await fetchAllActiveListings();
     const { dropsDetected, newListings, detectedDropsForEmail } = await processListings(rawListings);
+
+    // Rebuild the precomputed frontend views (active_drops / all_active_listings
+    // are materialized — they only change when this poll changes the data)
+    const { error: refreshErr } = await supabase.rpc('refresh_frontend_views');
+    if (refreshErr) console.error('View refresh error:', refreshErr.message);
+    else console.log('🔄 Frontend views refreshed');
+
     if (detectedDropsForEmail.length > 0) await notifySubscribers(detectedDropsForEmail);
 
     // Update poll log

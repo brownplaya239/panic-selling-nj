@@ -86,11 +86,14 @@ CREATE INDEX IF NOT EXISTS idx_snapshots_listing      ON price_snapshots(listing
 -- holds thousands of Closed/Off Market rows
 CREATE INDEX IF NOT EXISTS idx_listings_active_city ON listings(city) WHERE status = 'Active';
 
--- VIEW: joins drops + listing details — used directly by the frontend API.
--- PERF: town_avg and drop_count are computed ONCE via CTE joins — per-row
--- correlated subqueries hit the 3s anon statement timeout once the listings
--- table grew past ~25k rows (backfilled closings + lower price floor).
-CREATE OR REPLACE VIEW active_drops AS
+-- MATERIALIZED VIEW: joins drops + listing details — used directly by the frontend.
+-- The data only changes when the poller runs, so it is PRECOMPUTED here and
+-- refreshed by the poller (refresh_frontend_views RPC) instead of recomputed on
+-- every page load — on-the-fly aggregation started hitting the anon statement
+-- timeout once the listings table grew past ~25k rows.
+DROP VIEW IF EXISTS active_drops;
+DROP MATERIALIZED VIEW IF EXISTS active_drops;
+CREATE MATERIALIZED VIEW active_drops AS
 WITH town_avg AS (
   SELECT city, ROUND(AVG(current_price::NUMERIC / NULLIF(sqft, 0)))::INTEGER AS avg_ppsqft
   FROM listings
@@ -143,8 +146,13 @@ WHERE pd.is_active = TRUE
   AND l.status = 'Active'
 ORDER BY pd.drop_dollar DESC;
 
--- VIEW: all active listings (no drop required) — powers the "All Active" toggle
-CREATE OR REPLACE VIEW all_active_listings AS
+CREATE INDEX IF NOT EXISTS idx_mv_drops_dollar ON active_drops(drop_dollar DESC);
+GRANT SELECT ON active_drops TO anon, authenticated;
+
+-- MATERIALIZED VIEW: all active listings (no drop required) — "All Active" toggle
+DROP VIEW IF EXISTS all_active_listings;
+DROP MATERIALIZED VIEW IF EXISTS all_active_listings;
+CREATE MATERIALIZED VIEW all_active_listings AS
 SELECT
   l.id                                                               AS listing_id,
   NULL::bigint                                                       AS drop_id,
@@ -191,6 +199,18 @@ LEFT JOIN (
 ) ta ON ta.city = l.city
 WHERE l.status = 'Active'
 ORDER BY l.days_on_market DESC NULLS LAST;
+
+CREATE INDEX IF NOT EXISTS idx_mv_all_dom ON all_active_listings(days_on_market DESC);
+GRANT SELECT ON all_active_listings TO anon, authenticated;
+
+-- RPC: poller calls this after each poll to rebuild the precomputed views
+CREATE OR REPLACE FUNCTION refresh_frontend_views()
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN
+  REFRESH MATERIALIZED VIEW active_drops;
+  REFRESH MATERIALIZED VIEW all_active_listings;
+END;
+$$;
 
 -- ============================================================
 -- OUTCOME ENGINE: track listing lifecycle → grade predictions

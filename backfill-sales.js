@@ -196,6 +196,10 @@ async function main() {
     console.log(`  ${w.label}: ${raw.length} closed → ${saved} saved`);
   }
 
+  // Rebuild the precomputed frontend views — this backfill just changed listings
+  const { error: refreshErr } = await supabase.rpc('refresh_frontend_views');
+  if (refreshErr) console.warn(`  ⚠️  View refresh failed (run refresh_frontend_views manually): ${refreshErr.message}`);
+
   console.log(`\n✅ Backfill complete: ${grandKept} closed sales saved (${grandTotal} fetched)`);
   console.log(`   By county — Monmouth: ${byCounty.Monmouth}, Ocean: ${byCounty.Ocean}, Unknown: ${byCounty.Unknown}`);
   console.log(`   Query listing_outcomes (status=Closed) to see days_to_close & sold_vs_list_pct.\n`);
