@@ -36,7 +36,10 @@ const TARGET_CITIES     = [
   'Stafford', 'Manahawkin', 'Ship Bottom', 'Beach Haven', 'Harvey Cedars',
   'Surf City', 'Long Beach Township', 'Lacey', 'Jackson', 'Howell',
 ];
-const MIN_PRICE         = 200000;   // ignore listings below this
+const MIN_PRICE         = 25000;    // fetch floor — low enough to include land parcels
+                                    // and sub-$200k homes; junk (mislabeled rentals,
+                                    // commercial) is excluded by PropertyTypeLabel class,
+                                    // not by price
 const MAX_PRICE         = 10000000;
 const PAGE_SIZE         = 1000;
 const DROP_MIN_DOLLARS  = 5000;     // don't surface tiny rounding drops
@@ -120,7 +123,7 @@ async function sparkFetch(endpoint, params = {}) {
 // return < 1000 rows in a single call — deterministic, complete, no cursor. Any
 // bucket that still overflows is recursively halved, so it can never silently cap.
 
-const PRICE_EDGES = [MIN_PRICE, 300000, 400000, 500000, 650000, 850000, 1200000, 2000000]; // last edge → open top
+const PRICE_EDGES = [MIN_PRICE, 200000, 300000, 400000, 500000, 650000, 850000, 1200000, 2000000]; // last edge → open top
 
 async function fetchPriceBucket(baseFilter, lo, hi, byId, depth = 0) {
   let filter = `${baseFilter} And ListPrice Ge ${lo}`;
