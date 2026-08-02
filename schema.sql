@@ -82,8 +82,26 @@ CREATE INDEX IF NOT EXISTS idx_listings_county        ON listings(county);
 CREATE INDEX IF NOT EXISTS idx_listings_type          ON listings(property_type);
 CREATE INDEX IF NOT EXISTS idx_snapshots_listing      ON price_snapshots(listing_id, recorded_at DESC);
 
--- VIEW: joins drops + listing details — used directly by the frontend API
+-- Partial index: makes the town-average aggregate cheap now that the table also
+-- holds thousands of Closed/Off Market rows
+CREATE INDEX IF NOT EXISTS idx_listings_active_city ON listings(city) WHERE status = 'Active';
+
+-- VIEW: joins drops + listing details — used directly by the frontend API.
+-- PERF: town_avg and drop_count are computed ONCE via CTE joins — per-row
+-- correlated subqueries hit the 3s anon statement timeout once the listings
+-- table grew past ~25k rows (backfilled closings + lower price floor).
 CREATE OR REPLACE VIEW active_drops AS
+WITH town_avg AS (
+  SELECT city, ROUND(AVG(current_price::NUMERIC / NULLIF(sqft, 0)))::INTEGER AS avg_ppsqft
+  FROM listings
+  WHERE status = 'Active' AND sqft > 0 AND current_price > 0
+  GROUP BY city
+),
+drop_counts AS (
+  SELECT listing_id, COUNT(*)::INTEGER AS n
+  FROM price_drops
+  GROUP BY listing_id
+)
 SELECT
   pd.id                   AS drop_id,
   pd.listing_id,
@@ -113,21 +131,14 @@ SELECT
   l.tags,
   l.latitude,
   l.longitude,
-  -- Price per sq ft (computed from current price / sqft)
   ROUND(l.current_price::NUMERIC / NULLIF(l.sqft, 0))::INTEGER AS ppsqft,
-  -- Average ppsqft for all active listings in same city
-  (SELECT ROUND(AVG(l2.current_price::NUMERIC / NULLIF(l2.sqft, 0)))::INTEGER
-   FROM listings l2
-   WHERE l2.city = l.city
-     AND l2.status = 'Active'
-     AND l2.sqft > 0
-     AND l2.current_price > 0) AS town_avg_ppsqft,
-  -- Was this drop detected today?
+  ta.avg_ppsqft            AS town_avg_ppsqft,
   (pd.detected_at::DATE = CURRENT_DATE) AS is_new_today,
-  -- Total number of price drops this listing has had
-  (SELECT COUNT(*) FROM price_drops pd2 WHERE pd2.listing_id = pd.listing_id)::INTEGER AS drop_count
+  COALESCE(dc.n, 1)        AS drop_count
 FROM price_drops pd
-JOIN listings l ON l.id = pd.listing_id
+JOIN listings l          ON l.id = pd.listing_id
+LEFT JOIN town_avg ta    ON ta.city = l.city
+LEFT JOIN drop_counts dc ON dc.listing_id = pd.listing_id
 WHERE pd.is_active = TRUE
   AND l.status = 'Active'
 ORDER BY pd.drop_dollar DESC;
@@ -168,15 +179,16 @@ SELECT
   l.latitude,
   l.longitude,
   ROUND(l.current_price::NUMERIC / NULLIF(l.sqft, 0))::INTEGER      AS ppsqft,
-  (SELECT ROUND(AVG(l2.current_price::NUMERIC / NULLIF(l2.sqft, 0)))::INTEGER
-   FROM listings l2
-   WHERE l2.city = l.city
-     AND l2.status = 'Active'
-     AND l2.sqft > 0
-     AND l2.current_price > 0)                                       AS town_avg_ppsqft,
+  ta.avg_ppsqft                                                     AS town_avg_ppsqft,
   (l.list_date >= CURRENT_DATE - 1)                                 AS is_new_today,
   0::integer                                                         AS drop_count
 FROM listings l
+LEFT JOIN (
+  SELECT city, ROUND(AVG(current_price::NUMERIC / NULLIF(sqft, 0)))::INTEGER AS avg_ppsqft
+  FROM listings
+  WHERE status = 'Active' AND sqft > 0 AND current_price > 0
+  GROUP BY city
+) ta ON ta.city = l.city
 WHERE l.status = 'Active'
 ORDER BY l.days_on_market DESC NULLS LAST;
 
