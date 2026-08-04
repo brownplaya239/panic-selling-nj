@@ -85,6 +85,8 @@ CREATE INDEX IF NOT EXISTS idx_snapshots_listing      ON price_snapshots(listing
 -- Partial index: makes the town-average aggregate cheap now that the table also
 -- holds thousands of Closed/Off Market rows
 CREATE INDEX IF NOT EXISTS idx_listings_active_city ON listings(city) WHERE status = 'Active';
+-- Recent Sales tape: fast newest-first scans over recorded closings
+CREATE INDEX IF NOT EXISTS idx_listings_closed_date ON listings(close_date DESC) WHERE status = 'Closed';
 
 -- MATERIALIZED VIEW: joins drops + listing details — used directly by the frontend.
 -- The data only changes when the poller runs, so it is PRECOMPUTED here and

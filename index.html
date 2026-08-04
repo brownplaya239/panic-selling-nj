@@ -302,6 +302,28 @@
   .df-reset{background:none;border:1px solid var(--border2);color:var(--text3);font-family:var(--mono);font-size:9px;padding:5px 10px;cursor:pointer;}
   .df-reset:hover{color:var(--red);border-color:var(--red);}
   .df-count{font-family:var(--mono);font-size:10px;color:var(--cyan);margin-left:auto;}
+  /* RECENT SALES */
+  #modeBtnSales.active{background:var(--text2,#7a90b0);border-color:var(--text2,#7a90b0);color:#0b0f1a;font-weight:600;opacity:1;}
+  .sales-wrap{padding:18px 16px;max-width:1100px;}
+  .sales-intro{font-family:var(--mono);font-size:10px;color:var(--text3);margin-bottom:12px;line-height:1.55;}
+  .sales-pulse{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
+  .pulse-tile{border:1px solid var(--border);background:var(--bg2);padding:9px 15px;min-width:100px;}
+  .pulse-tile .v{font-size:15px;font-weight:600;color:var(--text);}
+  .pulse-tile .v.grn{color:var(--green);} .pulse-tile .v.red{color:var(--red);}
+  .pulse-tile .l{font-family:var(--mono);font-size:8.5px;color:var(--text3);letter-spacing:.08em;margin-top:2px;}
+  .sales-controls{display:flex;flex-wrap:wrap;gap:6px;align-items:center;border:1px solid var(--border);background:var(--bg2);padding:9px 12px;margin-bottom:14px;}
+  .sv-toggle{padding:5px 14px;font-family:var(--mono);font-size:10px;background:none;border:1px solid var(--border2);color:var(--text3);cursor:pointer;}
+  .sv-toggle.active{background:var(--text2,#7a90b0);border-color:var(--text2,#7a90b0);color:#0b0f1a;font-weight:600;}
+  .sales-table-wrap{overflow-x:auto;border:1px solid var(--border);}
+  .sales-table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:10px;white-space:nowrap;}
+  .sales-table th{text-align:left;padding:8px 10px;color:var(--text3);font-weight:400;letter-spacing:.06em;border-bottom:1px solid var(--border2);background:var(--bg2);font-size:9px;position:sticky;top:0;}
+  .sales-table td{padding:7px 10px;color:var(--text2);border-bottom:1px solid var(--border);}
+  .sales-table tr:last-child td{border-bottom:none;}
+  .sales-table tr.clickable{cursor:pointer;} .sales-table tr.clickable:hover td{background:rgba(56,189,248,.03);}
+  .st-price{color:var(--text);font-weight:600;}
+  .st-over{color:var(--green);} .st-under{color:var(--red);} .st-even{color:var(--text3);}
+  .st-new{color:var(--amber,#f59e0b);font-size:8px;letter-spacing:.06em;}
+  .sales-foot{font-family:var(--mono);font-size:9px;color:var(--text3);line-height:1.6;margin-top:14px;padding:10px 12px;background:var(--bg2);border:1px solid var(--border);}
 
   /* SUBSCRIBE MODAL */
   .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(3px);}
@@ -447,6 +469,7 @@
   <button class="mode-btn" id="modeBtnComps" onclick="setMode('comps')">⌂ Sold Comps</button>
   <button class="mode-btn" id="modeBtnTowns" onclick="setMode('towns')">★ Best Towns to Buy</button>
   <button class="mode-btn" id="modeBtnDeals" onclick="setMode('deals')">💎 Deal Screener</button>
+  <button class="mode-btn" id="modeBtnSales" onclick="setMode('sales')">📋 Recent Sales</button>
 </div>
 
 <!-- FILTER BAR -->
@@ -583,6 +606,40 @@
     </div>
     <div id="dealsResults"><div class="loading"><span class="spinner"></span>Scoring live deals...</div></div>
     <div class="deals-foot">Expected close = current ask × the measured discount that same-state sellers (same cut count) historically accepted, shown as the p25–p75 range with cohort size. Guidance only appears when the cohort has 20+ graded closings. Every guidance number is stored and graded against the actual closing price — accuracy stats publish once enough predictions resolve. Not an appraisal, offer, or financial advice.</div>
+  </div>
+</div>
+
+<!-- RECENT SALES VIEW -->
+<div id="salesView" style="display:none">
+  <div class="sales-wrap">
+    <div class="sales-intro">Every recorded closing in Monmouth &amp; Ocean County, refreshed twice daily from the MLS. Watch what actually trades — and for how much versus asking.</div>
+    <div class="sales-pulse" id="salesPulse"></div>
+    <div class="sales-controls" id="salesControls" style="display:none">
+      <button class="sv-toggle active" id="svTape" onclick="setSalesView('tape')">≡ Sales Tape</button>
+      <button class="sv-toggle" id="svTowns" onclick="setSalesView('towns')">▦ By Town</button>
+      <select class="df-select" id="slWindow" onchange="applySalesFilters()">
+        <option value="30">Last 30 days</option><option value="7">Last 7 days</option>
+        <option value="14">Last 14 days</option><option value="90">Last 90 days</option>
+      </select>
+      <select class="df-select" id="slCounty" onchange="applySalesFilters()"><option value="all">County: All</option></select>
+      <select class="df-select" id="slTown" onchange="applySalesFilters()"><option value="all">Town: All</option></select>
+      <select class="df-select" id="slClass" onchange="applySalesFilters()">
+        <option value="all">Class: All</option><option value="Residential">Residential</option>
+        <option value="Multi-Family">Multi-Family</option><option value="Land/Lots">Land</option>
+        <option value="Commercial">Commercial</option>
+      </select>
+      <select class="df-select" id="slMinPrice" onchange="applySalesFilters()">
+        <option value="0">Min $: Any</option><option value="200000">$200K</option>
+        <option value="500000">$500K</option><option value="1000000">$1M</option>
+      </select>
+      <select class="df-select" id="slSort" onchange="applySalesFilters()">
+        <option value="date">Sort: Most Recent</option><option value="price">Price ↓</option>
+        <option value="over">Most Over Ask</option><option value="under">Most Under Ask</option>
+      </select>
+      <span class="df-count" id="slCount"></span>
+    </div>
+    <div id="salesResults"><div class="loading"><span class="spinner"></span>Loading recorded sales...</div></div>
+    <div class="sales-foot">Closings sourced from MORMLS recorded transactions. "vs ask" compares the recorded closing price to the final asking price. New closings appear as the MLS records them (typically within days of settlement).</div>
   </div>
 </div>
 
@@ -1257,8 +1314,9 @@ function setMode(mode) {
   document.getElementById('modeBtnComps').classList.toggle('active', mode === 'comps');
   document.getElementById('modeBtnTowns').classList.toggle('active', mode === 'towns');
   document.getElementById('modeBtnDeals').classList.toggle('active', mode === 'deals');
-  // 'comps', 'towns', and 'deals' are standalone panels: swap the list UI out entirely
-  const listView = mode !== 'comps' && mode !== 'towns' && mode !== 'deals';
+  document.getElementById('modeBtnSales').classList.toggle('active', mode === 'sales');
+  // Standalone panels swap the list UI out entirely
+  const listView = mode !== 'comps' && mode !== 'towns' && mode !== 'deals' && mode !== 'sales';
   document.querySelector('.filter-bar').style.display     = listView ? '' : 'none';
   document.querySelector('.bed-filter').style.display     = listView ? '' : 'none';
   document.querySelector('.area-tabs-wrap').style.display = listView ? '' : 'none';
@@ -1267,6 +1325,7 @@ function setMode(mode) {
   document.getElementById('compsView').style.display      = mode === 'comps' ? 'block' : 'none';
   document.getElementById('townsView').style.display      = mode === 'towns' ? 'block' : 'none';
   document.getElementById('dealsView').style.display      = mode === 'deals' ? 'block' : 'none';
+  document.getElementById('salesView').style.display      = mode === 'sales' ? 'block' : 'none';
   if (!listView) {
     document.getElementById('alertCtaBar').style.display  = 'none';
     document.getElementById('townStatsBar').style.display = 'none';
@@ -1284,6 +1343,11 @@ function setMode(mode) {
   if (mode === 'deals') {
     document.getElementById('headerMode').textContent = 'Deal Screener';
     renderDeals();
+    return;
+  }
+  if (mode === 'sales') {
+    document.getElementById('headerMode').textContent = 'Recent Sales';
+    renderSales();
     return;
   }
   currentArea = 'all';
@@ -1583,6 +1647,154 @@ function renderDealCards(data) {
         + '</div>'
         + '</div>';
     }).join('');
+}
+
+// RECENT SALES — transaction tape + township rollup over recorded closings
+let _salesRows = null;
+let _salesView = 'tape';
+async function renderSales() {
+  const el = document.getElementById('salesResults');
+  if (_salesRows) { applySalesFilters(); return; }
+  try {
+    const since = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
+    _salesRows = [];
+    for (let from = 0; from < 8000; from += 1000) {
+      const { data, error } = await sb.from('listings')
+        .select('address,city,county,property_type,property_class,bedrooms,bathrooms,sqft,current_price,close_price,close_date,list_date,listing_url')
+        .eq('status', 'Closed').gt('close_price', 0).gte('close_date', since)
+        .order('close_date', { ascending: false }).range(from, from + 999);
+      if (error) throw error;
+      _salesRows.push(...(data || []));
+      if (!data || data.length < 1000) break;
+    }
+    if (!_salesRows.length) {
+      _salesRows = null;
+      el.innerHTML = '<div class="loading">No recorded closings yet — data accrues with each poll.</div>';
+      return;
+    }
+    for (const r of _salesRows) {
+      r._svl = (r.current_price > 0) ? ((r.close_price - r.current_price) / r.current_price) * 100 : null;
+      r._dtc = (r.list_date && r.close_date) ? Math.round((new Date(r.close_date) - new Date(r.list_date)) / 86400000) : null;
+      if (r._dtc != null && (r._dtc < 0 || r._dtc > 1825)) r._dtc = null;
+      r._ppsf = (r.sqft > 0) ? Math.round(r.close_price / r.sqft) : null;
+    }
+    const opts = (id, vals, label) => {
+      document.getElementById(id).innerHTML = '<option value="all">' + label + ': All</option>'
+        + vals.map(v => '<option value="' + v + '">' + v + '</option>').join('');
+    };
+    opts('slCounty', [...new Set(_salesRows.map(r => r.county).filter(c => c && c !== 'Unknown'))].sort(), 'County');
+    opts('slTown', [...new Set(_salesRows.map(r => r.city).filter(Boolean))].sort(), 'Town');
+    document.getElementById('salesControls').style.display = 'flex';
+    applySalesFilters();
+  } catch (e) {
+    _salesRows = null;
+    el.innerHTML = '<div class="loading">Could not load sales — please try again.</div>';
+  }
+}
+
+function setSalesView(v) {
+  _salesView = v;
+  document.getElementById('svTape').classList.toggle('active', v === 'tape');
+  document.getElementById('svTowns').classList.toggle('active', v === 'towns');
+  applySalesFilters();
+}
+
+function applySalesFilters() {
+  if (!_salesRows) return;
+  const days   = parseInt(document.getElementById('slWindow').value) || 30;
+  const county = document.getElementById('slCounty').value;
+  const town   = document.getElementById('slTown').value;
+  const cls    = document.getElementById('slClass').value;
+  const minP   = parseInt(document.getElementById('slMinPrice').value) || 0;
+  const sort   = document.getElementById('slSort').value;
+  const cutoff = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+
+  const rows = _salesRows.filter(r =>
+       r.close_date >= cutoff
+    && (county === 'all' || r.county === county)
+    && (town === 'all'   || r.city === town)
+    && (cls === 'all'    || r.property_class === cls)
+    && (!minP || r.close_price >= minP));
+
+  // Pulse strip: the market in one line
+  const med = a => { const s = a.filter(x => x != null).sort((x, y) => x - y); return s.length ? s[Math.floor(s.length / 2)] : null; };
+  const svls = rows.map(r => r._svl).filter(x => x != null);
+  const over = svls.filter(x => x >= 0).length;
+  const medSvl = med(svls);
+  document.getElementById('salesPulse').innerHTML =
+      '<div class="pulse-tile"><div class="v">' + rows.length.toLocaleString() + '</div><div class="l">CLOSINGS / ' + days + 'D</div></div>'
+    + '<div class="pulse-tile"><div class="v">' + (med(rows.map(r => r.close_price)) ? fmtM(med(rows.map(r => r.close_price))) : '--') + '</div><div class="l">MEDIAN SOLD</div></div>'
+    + (medSvl != null ? '<div class="pulse-tile"><div class="v ' + (medSvl >= 0 ? 'grn' : 'red') + '">' + (medSvl >= 0 ? '+' : '') + medSvl.toFixed(1) + '%</div><div class="l">MEDIAN VS ASK</div></div>' : '')
+    + (svls.length ? '<div class="pulse-tile"><div class="v ' + (over / svls.length >= 0.5 ? 'grn' : 'red') + '">' + Math.round(100 * over / svls.length) + '%</div><div class="l">AT/OVER ASK</div></div>' : '')
+    + '<div class="pulse-tile"><div class="v">' + (med(rows.map(r => r._dtc)) ?? '--') + 'D</div><div class="l">MEDIAN LIST→CLOSE</div></div>';
+  document.getElementById('slCount').textContent = rows.length.toLocaleString() + ' sales';
+
+  if (_salesView === 'towns') { renderSalesTowns(rows); return; }
+  rows.sort((a, b) =>
+    sort === 'price' ? b.close_price - a.close_price
+    : sort === 'over'  ? (b._svl ?? -999) - (a._svl ?? -999)
+    : sort === 'under' ? (a._svl ?? 999) - (b._svl ?? 999)
+    : (a.close_date < b.close_date ? 1 : -1));
+  renderSalesTape(rows.slice(0, 250));
+}
+
+function renderSalesTape(rows) {
+  const el = document.getElementById('salesResults');
+  if (!rows.length) { el.innerHTML = '<div class="loading">No closings match these filters.</div>'; return; }
+  const freshCutoff = new Date(Date.now() - 4 * 86400000).toISOString().slice(0, 10);
+  el.innerHTML = '<div class="sales-table-wrap"><table class="sales-table">'
+    + '<thead><tr><th>CLOSED</th><th>ADDRESS</th><th>TOWN</th><th>TYPE</th><th>BD/BA</th><th>SQFT</th><th>SOLD</th><th>VS ASK</th><th>$/SF</th><th>DAYS</th></tr></thead><tbody>'
+    + rows.map(r => {
+      const svlCls = r._svl == null ? 'st-even' : r._svl > 0.05 ? 'st-over' : r._svl < -0.05 ? 'st-under' : 'st-even';
+      const svlTxt = r._svl == null ? '--' : (r._svl >= 0 ? '+' : '') + r._svl.toFixed(1) + '%';
+      return '<tr class="clickable" onclick="openListing(\'' + (r.listing_url || '#') + '\',\'\',\'' + (r.address || '').replace(/'/g, '') + '\')">'
+        + '<td>' + new Date(r.close_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        + (r.close_date >= freshCutoff ? ' <span class="st-new">NEW</span>' : '') + '</td>'
+        + '<td>' + (r.address || '') + '</td>'
+        + '<td>' + (r.city || '') + '</td>'
+        + '<td>' + (r.property_type || '') + '</td>'
+        + '<td>' + (r.bedrooms ?? '--') + '/' + (r.bathrooms ?? '--') + '</td>'
+        + '<td>' + (r.sqft ? r.sqft.toLocaleString() : '--') + '</td>'
+        + '<td class="st-price">' + fmtPrice(r.close_price) + '</td>'
+        + '<td class="' + svlCls + '">' + svlTxt + '</td>'
+        + '<td>' + (r._ppsf ? '$' + r._ppsf : '--') + '</td>'
+        + '<td>' + (r._dtc ?? '--') + '</td>'
+        + '</tr>';
+    }).join('') + '</tbody></table></div>';
+}
+
+function renderSalesTowns(rows) {
+  const el = document.getElementById('salesResults');
+  const med = a => { const s = a.filter(x => x != null).sort((x, y) => x - y); return s.length ? s[Math.floor(s.length / 2)] : null; };
+  const byTown = {};
+  for (const r of rows) (byTown[r.city] ??= []).push(r);
+  const towns = Object.entries(byTown).map(([city, g]) => {
+    const svls = g.map(r => r._svl).filter(x => x != null);
+    return {
+      city, n: g.length, county: g[0].county,
+      medClose: med(g.map(r => r.close_price)),
+      medSvl: med(svls),
+      overPct: svls.length ? Math.round(100 * svls.filter(x => x >= 0).length / svls.length) : null,
+      medPpsf: med(g.map(r => r._ppsf)),
+      medDtc: med(g.map(r => r._dtc)),
+    };
+  }).sort((a, b) => b.n - a.n);
+  if (!towns.length) { el.innerHTML = '<div class="loading">No closings match these filters.</div>'; return; }
+  el.innerHTML = '<div class="sales-table-wrap"><table class="sales-table">'
+    + '<thead><tr><th>TOWN</th><th>COUNTY</th><th>CLOSINGS</th><th>MEDIAN SOLD</th><th>VS ASK</th><th>AT/OVER ASK</th><th>MED $/SF</th><th>MED DAYS</th></tr></thead><tbody>'
+    + towns.map(t => {
+      const svlCls = t.medSvl == null ? 'st-even' : t.medSvl > 0.05 ? 'st-over' : t.medSvl < -0.05 ? 'st-under' : 'st-even';
+      return '<tr>'
+        + '<td class="st-price">' + t.city + '</td>'
+        + '<td>' + (t.county === 'Unknown' ? '--' : t.county) + '</td>'
+        + '<td>' + t.n + '</td>'
+        + '<td class="st-price">' + (t.medClose ? fmtPrice(t.medClose) : '--') + '</td>'
+        + '<td class="' + svlCls + '">' + (t.medSvl == null ? '--' : (t.medSvl >= 0 ? '+' : '') + t.medSvl.toFixed(1) + '%') + '</td>'
+        + '<td>' + (t.overPct == null ? '--' : t.overPct + '%') + '</td>'
+        + '<td>' + (t.medPpsf ? '$' + t.medPpsf : '--') + '</td>'
+        + '<td>' + (t.medDtc ?? '--') + '</td>'
+        + '</tr>';
+    }).join('') + '</tbody></table></div>';
 }
 
 // RESET ALL FILTERS
