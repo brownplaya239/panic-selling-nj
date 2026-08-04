@@ -324,6 +324,12 @@
   .st-over{color:var(--green);} .st-under{color:var(--red);} .st-even{color:var(--text3);}
   .st-new{color:var(--amber,#f59e0b);font-size:8px;letter-spacing:.06em;}
   .sales-foot{font-family:var(--mono);font-size:9px;color:var(--text3);line-height:1.6;margin-top:14px;padding:10px 12px;background:var(--bg2);border:1px solid var(--border);}
+  /* CROSS-LINKS */
+  .jump-link{color:var(--cyan);cursor:pointer;font-family:var(--mono);font-size:9px;white-space:nowrap;opacity:.85;}
+  .jump-link:hover{opacity:1;text-decoration:underline;}
+  .deal-links{margin-top:7px;display:flex;gap:10px;justify-content:flex-end;}
+  .town-links{margin-left:4px;display:inline-flex;gap:10px;}
+  @media(max-width:640px){.deal-links{justify-content:flex-start;}}
 
   /* SUBSCRIBE MODAL */
   .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(3px);}
@@ -1238,6 +1244,8 @@ async function showTownStats(city) {
       parts.push('<span class="town-stat-edge">📉 cut homes: <b>' + ce.cut_over_ask_pct + '%</b> at/over ask (' + (ce.edge_over_ask_pp > 0 ? '+' : '') + ce.edge_over_ask_pp + 'pp vs town)</span>');
     }
     if (!parts.length) return;
+    const cq = "'" + city.replace(/'/g, "\\'") + "'";
+    parts.push('<span class="town-links"><span class="jump-link" onclick="jumpToDeals(' + cq + ',\'\')">💎 deals</span><span class="jump-link" onclick="jumpToSales(' + cq + ')">📋 sales</span></span>');
     bar.innerHTML = parts.join('');
     bar.style.display = 'flex';
   } catch (e) { /* stats are a bonus — never break the page */ }
@@ -1515,6 +1523,7 @@ async function renderBestTowns() {
         + '<div class="tr-score">' + r.score + '</div><div class="tr-slbl">SCORE</div>'
         + '<div class="tr-meta">' + (r.o.median_close ? fmtM(r.o.median_close) + ' median' : '') + '</div>'
         + '<button class="btn-town-alert" onclick="openSubscribeModal(\'' + r.area.replace(/'/g, "\\'") + '\',\'' + r.county + '\')">🔔 Alerts for ' + r.area + ' →</button>'
+        + '<div style="margin-top:6px"><span class="jump-link" onclick="jumpToDeals(\'' + r.area.replace(/'/g, "\\'") + '\',\'' + r.county + '\')">💎 view deals</span> &nbsp;<span class="jump-link" onclick="jumpToSales(\'' + r.area.replace(/'/g, "\\'") + '\')">📋 recent sales</span></div>'
         + '</div>'
         + '</div>';
     }).join('');
@@ -1524,8 +1533,54 @@ async function renderBestTowns() {
   }
 }
 
+// CROSS-LINKS — jump between surfaces carrying context (town/address pre-filtered)
+function _whenReady(check, fn, tries = 50) {
+  if (check()) { fn(); return; }
+  if (tries <= 0) return;
+  setTimeout(() => _whenReady(check, fn, tries - 1), 250);
+}
+function jumpToDeals(town, county) {
+  setMode('deals');
+  _whenReady(() => _dealsReady, () => {
+    resetDealFilters();
+    const townSel = document.getElementById('dfTown');
+    if (town && [...townSel.options].some(o => o.value === town)) townSel.value = town;
+    else if (county) {
+      const c = document.getElementById('dfCounty');
+      if ([...c.options].some(o => o.value === county)) c.value = county;
+    }
+    applyDealFilters();
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  });
+}
+function jumpToSales(town) {
+  setMode('sales');
+  _whenReady(() => _salesReady, () => {
+    const sel = document.getElementById('slTown');
+    if (town && [...sel.options].some(o => o.value === town)) sel.value = town;
+    setSalesView('tape');
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  });
+}
+function jumpToComps(address, city) {
+  setMode('comps');
+  const input = document.getElementById('compAddress');
+  // MLS UnparsedAddress usually already carries "…, Town, NJ zip" — only append
+  // the city when the address looks bare
+  input.value = (address || '').includes(',') ? address
+    : (address || '') + (city ? ', ' + city + ' NJ' : '');
+  if (input.value.trim()) runComps();
+  window.scrollTo({ top: 0, behavior: 'auto' });
+}
+function salesTownTape(town) {
+  const sel = document.getElementById('slTown');
+  if ([...sel.options].some(o => o.value === town)) sel.value = town;
+  setSalesView('tape');
+}
+
 // DEAL SCREENER — capitulation scores + empirical bid guidance from deal_scores
 let _dealRows = null;
+let _dealsReady = false;   // true once rows fetched AND filter dropdowns populated
 let _dealClass = 'all';
 async function renderDeals() {
   const el = document.getElementById('dealsResults');
@@ -1555,6 +1610,7 @@ async function renderDeals() {
     opts('dfTown', [...new Set(_dealRows.map(d => d.city).filter(Boolean))].sort(), 'Town');
     opts('dfSubtype', [...new Set(_dealRows.map(d => d.property_type).filter(Boolean))].sort(), 'Type');
     document.getElementById('dealsFilters').style.display = 'block';
+    _dealsReady = true;
     applyDealFilters();
   } catch (e) {
     _dealRows = null;
@@ -1644,6 +1700,10 @@ function renderDealCards(data) {
         +   '<div class="deal-range">range ' + fmtPrice(d.expected_low) + ' – ' + fmtPrice(d.expected_high) + '</div>'
         +   (d.est_savings > 0 ? '<div class="deal-save">↓ ' + fmtPrice(d.est_savings) + ' vs ask (' + d.expected_slide_pct + '%)</div>' : '')
         +   '<div class="deal-cohort">based on ' + d.cohort_n + ' closed ' + d.cut_count + (d.cut_count >= 3 ? '+' : '') + '-cut sellers' + (d.cut_again_pct != null ? ' · ' + d.cut_again_pct + '% cut again' : '') + '</div>'
+        +   '<div class="deal-links">'
+        +     '<span class="jump-link" onclick="jumpToComps(\'' + (d.address || '').replace(/'/g, '') + '\',\'' + (d.city || '').replace(/'/g, "\\'") + '\')">⌂ comps</span>'
+        +     '<span class="jump-link" onclick="jumpToSales(\'' + (d.city || '').replace(/'/g, "\\'") + '\')">📋 sales</span>'
+        +   '</div>'
         + '</div>'
         + '</div>';
     }).join('');
@@ -1651,6 +1711,7 @@ function renderDealCards(data) {
 
 // RECENT SALES — transaction tape + township rollup over recorded closings
 let _salesRows = null;
+let _salesReady = false;   // true once rows fetched AND filter dropdowns populated
 let _salesView = 'tape';
 async function renderSales() {
   const el = document.getElementById('salesResults');
@@ -1685,6 +1746,7 @@ async function renderSales() {
     opts('slCounty', [...new Set(_salesRows.map(r => r.county).filter(c => c && c !== 'Unknown'))].sort(), 'County');
     opts('slTown', [...new Set(_salesRows.map(r => r.city).filter(Boolean))].sort(), 'Town');
     document.getElementById('salesControls').style.display = 'flex';
+    _salesReady = true;
     applySalesFilters();
   } catch (e) {
     _salesRows = null;
@@ -1781,9 +1843,10 @@ function renderSalesTowns(rows) {
   }).sort((a, b) => b.n - a.n);
   if (!towns.length) { el.innerHTML = '<div class="loading">No closings match these filters.</div>'; return; }
   el.innerHTML = '<div class="sales-table-wrap"><table class="sales-table">'
-    + '<thead><tr><th>TOWN</th><th>COUNTY</th><th>CLOSINGS</th><th>MEDIAN SOLD</th><th>VS ASK</th><th>AT/OVER ASK</th><th>MED $/SF</th><th>MED DAYS</th></tr></thead><tbody>'
+    + '<thead><tr><th>TOWN</th><th>COUNTY</th><th>CLOSINGS</th><th>MEDIAN SOLD</th><th>VS ASK</th><th>AT/OVER ASK</th><th>MED $/SF</th><th>MED DAYS</th><th></th></tr></thead><tbody>'
     + towns.map(t => {
       const svlCls = t.medSvl == null ? 'st-even' : t.medSvl > 0.05 ? 'st-over' : t.medSvl < -0.05 ? 'st-under' : 'st-even';
+      const tq = "'" + t.city.replace(/'/g, "\\'") + "'";
       return '<tr>'
         + '<td class="st-price">' + t.city + '</td>'
         + '<td>' + (t.county === 'Unknown' ? '--' : t.county) + '</td>'
@@ -1793,6 +1856,7 @@ function renderSalesTowns(rows) {
         + '<td>' + (t.overPct == null ? '--' : t.overPct + '%') + '</td>'
         + '<td>' + (t.medPpsf ? '$' + t.medPpsf : '--') + '</td>'
         + '<td>' + (t.medDtc ?? '--') + '</td>'
+        + '<td><span class="jump-link" onclick="jumpToDeals(' + tq + ',\'' + (t.county || '') + '\')">💎 deals</span> &nbsp;<span class="jump-link" onclick="salesTownTape(' + tq + ')">≡ tape</span></td>'
         + '</tr>';
     }).join('') + '</tbody></table></div>';
 }
