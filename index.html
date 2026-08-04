@@ -288,6 +288,20 @@
     .deal-exp,.deal-save,.deal-cohort{margin-top:0;}
   }
   .deals-foot{font-family:var(--mono);font-size:9px;color:var(--text3);line-height:1.65;margin-top:14px;padding:11px 12px;background:var(--bg2);border:1px solid var(--border);}
+  .deals-filters{border:1px solid var(--border);background:var(--bg2);padding:10px 12px;margin-bottom:14px;}
+  .df-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;}
+  .df-row + .df-row{margin-top:8px;}
+  .df-pill{padding:5px 14px;font-family:var(--mono);font-size:10px;background:none;border:1px solid var(--border2);color:var(--text3);cursor:pointer;transition:all .12s;}
+  .df-pill:hover{color:var(--text);}
+  .df-pill.active{background:var(--amber,#f59e0b);border-color:var(--amber,#f59e0b);color:#0b0f1a;font-weight:600;}
+  .df-select{background:var(--bg);border:1px solid var(--border2);color:var(--text2);font-family:var(--mono);font-size:9.5px;padding:5px 6px;outline:none;cursor:pointer;max-width:150px;}
+  .df-select:focus{border-color:var(--accent);}
+  .df-input{background:var(--bg);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:9.5px;padding:5px 8px;outline:none;width:200px;}
+  .df-input:focus{border-color:var(--accent);}
+  .df-input::placeholder{color:var(--text3);}
+  .df-reset{background:none;border:1px solid var(--border2);color:var(--text3);font-family:var(--mono);font-size:9px;padding:5px 10px;cursor:pointer;}
+  .df-reset:hover{color:var(--red);border-color:var(--red);}
+  .df-count{font-family:var(--mono);font-size:10px;color:var(--cyan);margin-left:auto;}
 
   /* SUBSCRIBE MODAL */
   .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(3px);}
@@ -527,6 +541,46 @@
 <div id="dealsView" style="display:none">
   <div class="deals-wrap">
     <div class="deals-intro"><span class="deals-beta">BETA</span> Active listings where the seller is measurably capitulating — scored on fatigue, market softness, pricing gap, motivation language, and cut velocity. Bid guidance is the <b>empirical close range</b> of past sellers in the same state, not an appraisal.</div>
+    <div class="deals-filters" id="dealsFilters" style="display:none">
+      <div class="df-row">
+        <button class="df-pill active" data-class="all" onclick="setDealClass(this)">All</button>
+        <button class="df-pill" data-class="Residential" onclick="setDealClass(this)">Residential</button>
+        <button class="df-pill" data-class="Multi-Family" onclick="setDealClass(this)">Multi-Family</button>
+        <button class="df-pill" data-class="Land/Lots" onclick="setDealClass(this)">Land</button>
+        <button class="df-pill" data-class="Commercial" onclick="setDealClass(this)">Commercial</button>
+      </div>
+      <div class="df-row">
+        <select class="df-select" id="dfCounty" onchange="applyDealFilters()"><option value="all">County: All</option></select>
+        <select class="df-select" id="dfTown" onchange="applyDealFilters()"><option value="all">Town: All</option></select>
+        <select class="df-select" id="dfSubtype" onchange="applyDealFilters()"><option value="all">Type: All</option></select>
+        <select class="df-select" id="dfGrade" onchange="applyDealFilters()">
+          <option value="all">Grade: Any</option><option value="80">A+ only</option>
+          <option value="68">A or better</option><option value="56">B+ or better</option><option value="44">B or better</option>
+        </select>
+        <select class="df-select" id="dfMinPrice" onchange="applyDealFilters()">
+          <option value="0">Min $: Any</option><option value="100000">$100K</option><option value="200000">$200K</option>
+          <option value="400000">$400K</option><option value="700000">$700K</option><option value="1000000">$1M</option>
+        </select>
+        <select class="df-select" id="dfMaxPrice" onchange="applyDealFilters()">
+          <option value="0">Max $: Any</option><option value="200000">$200K</option><option value="400000">$400K</option>
+          <option value="700000">$700K</option><option value="1000000">$1M</option><option value="2000000">$2M</option>
+        </select>
+        <select class="df-select" id="dfAcres" onchange="applyDealFilters()">
+          <option value="0">Lot: Any</option><option value="0.25">0.25+ ac</option><option value="0.5">0.5+ ac</option>
+          <option value="1">1+ ac</option><option value="2">2+ ac</option><option value="5">5+ ac</option>
+        </select>
+        <select class="df-select" id="dfSenior" onchange="applyDealFilters()">
+          <option value="any">55+: Any</option><option value="exclude">Exclude 55+</option><option value="only">Only 55+</option>
+        </select>
+        <input class="df-input" id="dfZoning" placeholder="Zoning contains… (e.g. Agricultural)" oninput="applyDealFilters()">
+        <select class="df-select" id="dfSort" onchange="applyDealFilters()">
+          <option value="score">Sort: Score</option><option value="savings">$ Savings</option>
+          <option value="slide">% Discount</option><option value="price">Price ↑</option><option value="dom">DOM ↓</option>
+        </select>
+        <button class="df-reset" onclick="resetDealFilters()">× Reset</button>
+        <span class="df-count" id="dfCount"></span>
+      </div>
+    </div>
     <div id="dealsResults"><div class="loading"><span class="spinner"></span>Scoring live deals...</div></div>
     <div class="deals-foot">Expected close = current ask × the measured discount that same-state sellers (same cut count) historically accepted, shown as the p25–p75 range with cohort size. Guidance only appears when the cohort has 20+ graded closings. Every guidance number is stored and graded against the actual closing price — accuracy stats publish once enough predictions resolve. Not an appraisal, offer, or financial advice.</div>
   </div>
@@ -1407,24 +1461,109 @@ async function renderBestTowns() {
 }
 
 // DEAL SCREENER — capitulation scores + empirical bid guidance from deal_scores
-let _dealsLoaded = false;
+let _dealRows = null;
+let _dealClass = 'all';
 async function renderDeals() {
-  if (_dealsLoaded) return; // recomputed only on poll; render once per session
   const el = document.getElementById('dealsResults');
+  if (_dealRows) { applyDealFilters(); return; }
   try {
-    const { data, error } = await sb.from('deal_scores').select('*')
-      .order('score', { ascending: false }).limit(100);
-    if (error) throw error;
-    if (!data || !data.length) {
+    // Page in the full scored set once; filters run client-side
+    _dealRows = [];
+    for (let from = 0; from < 4000; from += 1000) {
+      const { data, error } = await sb.from('deal_scores').select('*')
+        .order('score', { ascending: false }).range(from, from + 999);
+      if (error) throw error;
+      _dealRows.push(...(data || []));
+      if (!data || data.length < 1000) break;
+    }
+    if (!_dealRows.length) {
+      _dealRows = null;
       el.innerHTML = '<div class="loading">No scored deals yet — scores rebuild on the next data poll.</div>';
       return;
     }
-    const gradeCls = g => g === 'A+' ? 'g-aplus' : g === 'A' ? 'g-a' : g === 'B+' ? 'g-bplus' : g === 'B' ? 'g-b' : 'g-c';
-    el.innerHTML = data.map(d => {
+    // Populate filter dropdowns from the data
+    const opts = (id, vals, label) => {
+      const s = document.getElementById(id);
+      s.innerHTML = '<option value="all">' + label + ': All</option>'
+        + vals.map(v => '<option value="' + v + '">' + v + '</option>').join('');
+    };
+    opts('dfCounty', [...new Set(_dealRows.map(d => d.county).filter(c => c && c !== 'Unknown'))].sort(), 'County');
+    opts('dfTown', [...new Set(_dealRows.map(d => d.city).filter(Boolean))].sort(), 'Town');
+    opts('dfSubtype', [...new Set(_dealRows.map(d => d.property_type).filter(Boolean))].sort(), 'Type');
+    document.getElementById('dealsFilters').style.display = 'block';
+    applyDealFilters();
+  } catch (e) {
+    _dealRows = null;
+    el.innerHTML = '<div class="loading">Deal scores unavailable — check back after the next data poll.</div>';
+  }
+}
+
+function setDealClass(btn) {
+  _dealClass = btn.dataset.class;
+  document.querySelectorAll('.df-pill').forEach(b => b.classList.toggle('active', b === btn));
+  applyDealFilters();
+}
+
+function resetDealFilters() {
+  _dealClass = 'all';
+  document.querySelectorAll('.df-pill').forEach(b => b.classList.toggle('active', b.dataset.class === 'all'));
+  for (const id of ['dfCounty','dfTown','dfSubtype','dfGrade']) document.getElementById(id).value = 'all';
+  for (const id of ['dfMinPrice','dfMaxPrice','dfAcres']) document.getElementById(id).value = '0';
+  document.getElementById('dfSenior').value = 'any';
+  document.getElementById('dfZoning').value = '';
+  document.getElementById('dfSort').value = 'score';
+  applyDealFilters();
+}
+
+function applyDealFilters() {
+  if (!_dealRows) return;
+  const county  = document.getElementById('dfCounty').value;
+  const town    = document.getElementById('dfTown').value;
+  const subtype = document.getElementById('dfSubtype').value;
+  const minScore = parseInt(document.getElementById('dfGrade').value) || 0;
+  const minP    = parseInt(document.getElementById('dfMinPrice').value) || 0;
+  const maxP    = parseInt(document.getElementById('dfMaxPrice').value) || 0;
+  const minAc   = parseFloat(document.getElementById('dfAcres').value) || 0;
+  const senior  = document.getElementById('dfSenior').value;
+  const zoning  = document.getElementById('dfZoning').value.trim().toLowerCase();
+  const sort    = document.getElementById('dfSort').value;
+
+  let rows = _dealRows.filter(d =>
+       (_dealClass === 'all' || d.property_class === _dealClass)
+    && (county === 'all'  || d.county === county)
+    && (town === 'all'    || d.city === town)
+    && (subtype === 'all' || d.property_type === subtype)
+    && d.score >= minScore
+    && (!minP || d.ask >= minP)
+    && (!maxP || d.ask <= maxP)
+    && (!minAc || (d.lot_acres != null && parseFloat(d.lot_acres) >= minAc))
+    && (senior === 'any' || (senior === 'only' ? d.senior_community === true : d.senior_community !== true))
+    && (!zoning || (d.zoning || '').toLowerCase().includes(zoning))
+  );
+  rows.sort((a, b) =>
+    sort === 'savings' ? (b.est_savings || 0) - (a.est_savings || 0)
+    : sort === 'slide' ? (b.expected_slide_pct || 0) - (a.expected_slide_pct || 0)
+    : sort === 'price' ? a.ask - b.ask
+    : sort === 'dom'   ? (b.dom || 0) - (a.dom || 0)
+    : b.score - a.score);
+  document.getElementById('dfCount').textContent = rows.length + ' deal' + (rows.length === 1 ? '' : 's');
+  renderDealCards(rows.slice(0, 100));
+}
+
+function renderDealCards(data) {
+  const el = document.getElementById('dealsResults');
+  if (!data.length) {
+    el.innerHTML = '<div class="loading">No deals match these filters.</div>';
+    return;
+  }
+  const gradeCls = g => g === 'A+' ? 'g-aplus' : g === 'A' ? 'g-a' : g === 'B+' ? 'g-bplus' : g === 'B' ? 'g-b' : 'g-c';
+  el.innerHTML = data.map(d => {
       const beds = d.bedrooms ? d.bedrooms + ' BD' : '';
       const baths = d.bathrooms ? d.bathrooms + ' BA' : '';
       const sf = d.sqft ? d.sqft.toLocaleString() + ' SF' : '';
-      const specs = [d.city + (d.county && d.county !== 'Unknown' ? ' · ' + d.county + ' Co.' : ''), beds, baths, sf, (d.property_type || '')].filter(Boolean).join(' · ');
+      const acres = (d.lot_acres != null && parseFloat(d.lot_acres) > 0) ? parseFloat(d.lot_acres).toFixed(2) + ' ac' : '';
+      const zon = d.zoning ? 'Zoned: ' + d.zoning : '';
+      const specs = [d.city + (d.county && d.county !== 'Unknown' ? ' · ' + d.county + ' Co.' : ''), beds, baths, sf, acres, (d.property_type || ''), (d.senior_community ? '55+' : ''), zon].filter(Boolean).join(' · ');
       const mtags = (d.motivation_tags || []).map(t => '<span class="deal-mtag">' + t + '</span>').join('');
       const reasons = (d.reasons || []).map(r => '<span>' + r + '</span>').join(' &nbsp; ');
       return '<div class="deal-card">'
@@ -1444,10 +1583,6 @@ async function renderDeals() {
         + '</div>'
         + '</div>';
     }).join('');
-    _dealsLoaded = true;
-  } catch (e) {
-    el.innerHTML = '<div class="loading">Deal scores unavailable — check back after the next data poll.</div>';
-  }
 }
 
 // RESET ALL FILTERS

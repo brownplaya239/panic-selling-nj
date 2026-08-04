@@ -221,6 +221,12 @@ ALTER TABLE listings ADD COLUMN IF NOT EXISTS close_price  BIGINT;
 ALTER TABLE listings ADD COLUMN IF NOT EXISTS close_date   DATE;
 ALTER TABLE listings ADD COLUMN IF NOT EXISTS pending_date DATE;
 
+-- Investment-filter columns (Deal Screener): class/zoning/lot/55+
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS property_class   TEXT;           -- 'Residential' | 'Multi-Family' | 'Land/Lots' | 'Commercial'
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS zoning           TEXT;           -- ZoningDescription tags, comma-separated
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS lot_acres        NUMERIC(10,3);
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS senior_community BOOLEAN DEFAULT FALSE;
+
 -- STATUS EVENTS: one row per observed status transition (Active→Pending→Closed etc.)
 CREATE TABLE IF NOT EXISTS listing_status_events (
   id               BIGSERIAL PRIMARY KEY,
@@ -283,6 +289,7 @@ SELECT
 FROM listings l
 LEFT JOIN drop_stats ds ON ds.listing_id = l.id
 WHERE l.status = 'Active'
+  AND (l.property_class IS NULL OR l.property_class <> 'Commercial')  -- residential stats stay residential
 GROUP BY l.city;
 
 GRANT SELECT ON town_stats TO anon, authenticated;
@@ -305,6 +312,7 @@ WITH sold AS (
   FROM listings
   WHERE status = 'Closed' AND close_price >= 200000
     AND close_date >= CURRENT_DATE - INTERVAL '12 months'
+    AND (property_class IS NULL OR property_class <> 'Commercial')
 )
 SELECT
   city,
@@ -373,6 +381,7 @@ WITH closed AS (
   WHERE l.status = 'Closed' AND l.close_price >= 200000 AND l.current_price > 0
     AND l.close_date >= CURRENT_DATE - INTERVAL '12 months'
     AND l.county IN ('Monmouth', 'Ocean')
+    AND (l.property_class IS NULL OR l.property_class <> 'Commercial')
 ),
 cty AS (
   SELECT county,
@@ -447,8 +456,19 @@ CREATE TABLE IF NOT EXISTS deal_scores (
   reasons           TEXT[],
   address           TEXT, city TEXT, county TEXT, property_type TEXT,
   bedrooms          INTEGER, bathrooms NUMERIC(4,1), sqft INTEGER,
-  photo_url         TEXT, listing_url TEXT
+  photo_url         TEXT, listing_url TEXT,
+  property_class    TEXT,
+  zoning            TEXT,
+  lot_acres         NUMERIC(10,3),
+  senior_community  BOOLEAN DEFAULT FALSE,
+  year_built        INTEGER
 );
+-- (If deal_scores predates these columns:)
+ALTER TABLE deal_scores ADD COLUMN IF NOT EXISTS property_class   TEXT;
+ALTER TABLE deal_scores ADD COLUMN IF NOT EXISTS zoning           TEXT;
+ALTER TABLE deal_scores ADD COLUMN IF NOT EXISTS lot_acres        NUMERIC(10,3);
+ALTER TABLE deal_scores ADD COLUMN IF NOT EXISTS senior_community BOOLEAN DEFAULT FALSE;
+ALTER TABLE deal_scores ADD COLUMN IF NOT EXISTS year_built       INTEGER;
 ALTER TABLE deal_scores ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Public read deal scores" ON deal_scores FOR SELECT USING (true);
 

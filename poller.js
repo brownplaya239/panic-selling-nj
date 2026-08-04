@@ -81,6 +81,9 @@ async function sparkFetch(endpoint, params = {}) {
       'StandardFields.City', 'StandardFields.PostalCode',
       'StandardFields.SubdivisionName', 'StandardFields.PropertyType',
       'StandardFields.PropertySubType', 'StandardFields.PropertyTypeLabel',
+      'StandardFields.ZoningDescription', 'StandardFields.LotSizeAcres',
+      'StandardFields.SeniorCommunityYN', 'StandardFields.WaterfrontYN',
+      'StandardFields.PoolPrivateYN', 'StandardFields.NewConstructionYN',
       'StandardFields.BedsTotal', 'StandardFields.BathsTotal',
       'StandardFields.BedroomsTotal', 'StandardFields.BathroomsTotalDecimal',
       'StandardFields.BuildingAreaTotal', 'StandardFields.LotSizeArea',
@@ -207,6 +210,13 @@ function normalizeListing(raw) {
     // Feed quirk: PropertyType is a code ("A"); the readable type is PropertySubType
     property_type: (sf.PropertySubType && !String(sf.PropertySubType).includes('*'))
                      ? sf.PropertySubType : (sf.PropertyTypeLabel || 'Residential'),
+    property_class: (typeof sf.PropertyTypeLabel === 'string' && !sf.PropertyTypeLabel.includes('*'))
+                     ? sf.PropertyTypeLabel : null,
+    // ZoningDescription is occasionally a dict — only store clean strings
+    zoning:        (typeof sf.ZoningDescription === 'string' && !sf.ZoningDescription.includes('*'))
+                     ? sf.ZoningDescription : null,
+    lot_acres:     safeDec(sf.LotSizeAcres),
+    senior_community: sf.SeniorCommunityYN === true || sf.PropertySubType === 'Adult Community',
     bedrooms:      safeInt(sf.BedsTotal) ?? safeInt(sf.BedroomsTotal),
     bathrooms:     safeDec(sf.BathsTotal) ?? safeDec(sf.BathroomsTotalDecimal),
     sqft:          safeInt(sf.BuildingAreaTotal),
@@ -267,9 +277,10 @@ async function processListings(rawListings) {
   const detectedDropsForEmail = [];
   const BATCH = 100;
 
-  // Sales only — the feed also carries rentals and commercial (PropertyTypeLabel:
-  // 'Residential Rental', 'Commercial', 'Commercial Lease'). Fail-open if masked/missing.
-  const SALE_CLASSES = new Set(['Residential', 'Multi-Family', 'Land/Lots']);
+  // Sales only — exclude rentals and leases (PropertyTypeLabel 'Residential Rental',
+  // 'Commercial Lease'). Commercial SALES are real investment inventory and stay in.
+  // Fail-open if masked/missing.
+  const SALE_CLASSES = new Set(['Residential', 'Multi-Family', 'Land/Lots', 'Commercial']);
   const saleListings = rawListings.filter(r => {
     const label = r.StandardFields?.PropertyTypeLabel;
     return !label || String(label).includes('*') || SALE_CLASSES.has(label);
@@ -454,7 +465,7 @@ async function computeDealScores() {
   const cutIds = [...cutsByListing.keys()];
 
   // Listing rows for every cutter (closed → training, active → targets)
-  const fields = 'id,status,close_price,current_price,days_on_market,description,city,county,address,photo_url,listing_url,bedrooms,bathrooms,sqft,property_type';
+  const fields = 'id,status,close_price,current_price,days_on_market,description,city,county,address,photo_url,listing_url,bedrooms,bathrooms,sqft,property_type,property_class,zoning,lot_acres,senior_community,year_built';
   const listings = [];
   for (let i = 0; i < cutIds.length; i += 200) {
     const { data } = await supabase.from('listings').select(fields).in('id', cutIds.slice(i, i + 200));
@@ -559,6 +570,8 @@ async function computeDealScores() {
       ppsqft: pp.ppsqft || null, town_avg_ppsqft: pp.town_avg_ppsqft || null,
       motivation_tags: tags, reasons,
       address: l.address, city: l.city, county: l.county, property_type: l.property_type,
+      property_class: l.property_class, zoning: l.zoning, lot_acres: l.lot_acres,
+      senior_community: l.senior_community || false, year_built: l.year_built,
       bedrooms: l.bedrooms, bathrooms: l.bathrooms, sqft: l.sqft,
       photo_url: l.photo_url, listing_url: l.listing_url,
       computed_at: new Date().toISOString(),
