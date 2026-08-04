@@ -252,6 +252,42 @@
     .tr-meta{margin-top:0;}
     .tr-bar{grid-template-columns:78px 1fr 32px;}
   }
+  /* DEAL SCREENER */
+  #modeBtnDeals.active{background:var(--amber,#f59e0b);border-color:var(--amber,#f59e0b);color:#0b0f1a;font-weight:600;opacity:1;}
+  .deals-wrap{padding:18px 16px;max-width:1000px;}
+  .deals-intro{font-family:var(--mono);font-size:10px;color:var(--text3);margin-bottom:14px;line-height:1.55;}
+  .deals-intro b{color:var(--text2);}
+  .deals-beta{color:var(--amber,#f59e0b);border:1px solid rgba(245,158,11,.4);padding:1px 6px;font-size:9px;letter-spacing:.08em;margin-right:8px;}
+  .deal-card{display:grid;grid-template-columns:52px 1fr 190px;gap:14px;padding:16px 6px;border-bottom:1px solid var(--border);}
+  .deal-grade{width:44px;height:44px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;border:1px solid;font-family:var(--mono);}
+  .g-aplus{color:#34d399;border-color:#34d399;background:rgba(52,211,153,.08);}
+  .g-a{color:#34d399;border-color:rgba(52,211,153,.5);}
+  .g-bplus{color:var(--cyan);border-color:rgba(56,189,248,.5);}
+  .g-b{color:var(--amber,#f59e0b);border-color:rgba(245,158,11,.5);}
+  .g-c{color:var(--text3);border-color:var(--border2);}
+  .deal-score-sub{font-family:var(--mono);font-size:8px;color:var(--text3);text-align:center;margin-top:4px;letter-spacing:.06em;}
+  .deal-title{font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px;cursor:pointer;}
+  .deal-title:hover{color:var(--cyan);}
+  .deal-sub{font-family:var(--mono);font-size:10px;color:var(--text2);margin-bottom:8px;}
+  .deal-tags{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;}
+  .deal-mtag{font-family:var(--mono);font-size:8px;letter-spacing:.05em;color:var(--amber,#f59e0b);border:1px solid rgba(245,158,11,.35);padding:1px 5px;}
+  .deal-reasons{font-family:var(--mono);font-size:9.5px;color:var(--text2);line-height:1.7;}
+  .deal-reasons span{white-space:nowrap;}
+  .deal-reasons span::before{content:'✓ ';color:var(--green);}
+  .deal-right{text-align:right;font-family:var(--mono);}
+  .deal-ask{font-size:10px;color:var(--text3);}
+  .deal-ask b{color:var(--text);font-size:13px;}
+  .deal-exp{margin-top:6px;font-size:10px;color:var(--text3);}
+  .deal-exp b{color:var(--green);font-size:15px;}
+  .deal-range{font-size:9px;color:var(--text2);margin-top:2px;}
+  .deal-save{margin-top:6px;font-size:10px;color:var(--green);}
+  .deal-cohort{font-size:8.5px;color:var(--text3);margin-top:6px;line-height:1.5;}
+  @media(max-width:640px){
+    .deal-card{grid-template-columns:44px 1fr;}
+    .deal-right{grid-column:1 / -1;text-align:left;display:flex;gap:16px;flex-wrap:wrap;align-items:baseline;border-top:1px dashed var(--border);padding-top:8px;}
+    .deal-exp,.deal-save,.deal-cohort{margin-top:0;}
+  }
+  .deals-foot{font-family:var(--mono);font-size:9px;color:var(--text3);line-height:1.65;margin-top:14px;padding:11px 12px;background:var(--bg2);border:1px solid var(--border);}
 
   /* SUBSCRIBE MODAL */
   .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(3px);}
@@ -396,6 +432,7 @@
   <button class="mode-btn" id="modeBtnAll" onclick="setMode('all')">▣ All Active Listings</button>
   <button class="mode-btn" id="modeBtnComps" onclick="setMode('comps')">⌂ Sold Comps</button>
   <button class="mode-btn" id="modeBtnTowns" onclick="setMode('towns')">★ Best Towns to Buy</button>
+  <button class="mode-btn" id="modeBtnDeals" onclick="setMode('deals')">💎 Deal Screener</button>
 </div>
 
 <!-- FILTER BAR -->
@@ -483,6 +520,15 @@
     <div class="towns-banner" id="townsBanner"></div>
     <div id="townsResults"><div class="loading"><span class="spinner"></span>Scoring towns...</div></div>
     <div class="towns-foot">Only towns with <b>10+ closed sales that had a price cut</b> appear — thin samples are excluded rather than shown as noise. Cut-rates are shrunk toward the county average so a small town can't post a false edge. Score is an editorial blend of the measured stats, not a prediction.</div>
+  </div>
+</div>
+
+<!-- DEAL SCREENER VIEW -->
+<div id="dealsView" style="display:none">
+  <div class="deals-wrap">
+    <div class="deals-intro"><span class="deals-beta">BETA</span> Active listings where the seller is measurably capitulating — scored on fatigue, market softness, pricing gap, motivation language, and cut velocity. Bid guidance is the <b>empirical close range</b> of past sellers in the same state, not an appraisal.</div>
+    <div id="dealsResults"><div class="loading"><span class="spinner"></span>Scoring live deals...</div></div>
+    <div class="deals-foot">Expected close = current ask × the measured discount that same-state sellers (same cut count) historically accepted, shown as the p25–p75 range with cohort size. Guidance only appears when the cohort has 20+ graded closings. Every guidance number is stored and graded against the actual closing price — accuracy stats publish once enough predictions resolve. Not an appraisal, offer, or financial advice.</div>
   </div>
 </div>
 
@@ -1156,8 +1202,9 @@ function setMode(mode) {
   document.getElementById('modeBtnAll').classList.toggle('active', mode === 'all');
   document.getElementById('modeBtnComps').classList.toggle('active', mode === 'comps');
   document.getElementById('modeBtnTowns').classList.toggle('active', mode === 'towns');
-  // 'comps' and 'towns' are standalone panels: swap the list UI out entirely
-  const listView = mode !== 'comps' && mode !== 'towns';
+  document.getElementById('modeBtnDeals').classList.toggle('active', mode === 'deals');
+  // 'comps', 'towns', and 'deals' are standalone panels: swap the list UI out entirely
+  const listView = mode !== 'comps' && mode !== 'towns' && mode !== 'deals';
   document.querySelector('.filter-bar').style.display     = listView ? '' : 'none';
   document.querySelector('.bed-filter').style.display     = listView ? '' : 'none';
   document.querySelector('.area-tabs-wrap').style.display = listView ? '' : 'none';
@@ -1165,6 +1212,7 @@ function setMode(mode) {
   document.getElementById('listings').style.display       = listView ? '' : 'none';
   document.getElementById('compsView').style.display      = mode === 'comps' ? 'block' : 'none';
   document.getElementById('townsView').style.display      = mode === 'towns' ? 'block' : 'none';
+  document.getElementById('dealsView').style.display      = mode === 'deals' ? 'block' : 'none';
   if (!listView) {
     document.getElementById('alertCtaBar').style.display  = 'none';
     document.getElementById('townStatsBar').style.display = 'none';
@@ -1177,6 +1225,11 @@ function setMode(mode) {
   if (mode === 'towns') {
     document.getElementById('headerMode').textContent = 'Best Towns to Buy';
     renderBestTowns();
+    return;
+  }
+  if (mode === 'deals') {
+    document.getElementById('headerMode').textContent = 'Deal Screener';
+    renderDeals();
     return;
   }
   currentArea = 'all';
@@ -1350,6 +1403,50 @@ async function renderBestTowns() {
     _townsLoaded = true;
   } catch (e) {
     resEl.innerHTML = '<div class="loading">Could not load town rankings — please try again.</div>';
+  }
+}
+
+// DEAL SCREENER — capitulation scores + empirical bid guidance from deal_scores
+let _dealsLoaded = false;
+async function renderDeals() {
+  if (_dealsLoaded) return; // recomputed only on poll; render once per session
+  const el = document.getElementById('dealsResults');
+  try {
+    const { data, error } = await sb.from('deal_scores').select('*')
+      .order('score', { ascending: false }).limit(100);
+    if (error) throw error;
+    if (!data || !data.length) {
+      el.innerHTML = '<div class="loading">No scored deals yet — scores rebuild on the next data poll.</div>';
+      return;
+    }
+    const gradeCls = g => g === 'A+' ? 'g-aplus' : g === 'A' ? 'g-a' : g === 'B+' ? 'g-bplus' : g === 'B' ? 'g-b' : 'g-c';
+    el.innerHTML = data.map(d => {
+      const beds = d.bedrooms ? d.bedrooms + ' BD' : '';
+      const baths = d.bathrooms ? d.bathrooms + ' BA' : '';
+      const sf = d.sqft ? d.sqft.toLocaleString() + ' SF' : '';
+      const specs = [d.city + (d.county && d.county !== 'Unknown' ? ' · ' + d.county + ' Co.' : ''), beds, baths, sf, (d.property_type || '')].filter(Boolean).join(' · ');
+      const mtags = (d.motivation_tags || []).map(t => '<span class="deal-mtag">' + t + '</span>').join('');
+      const reasons = (d.reasons || []).map(r => '<span>' + r + '</span>').join(' &nbsp; ');
+      return '<div class="deal-card">'
+        + '<div><div class="deal-grade ' + gradeCls(d.grade) + '">' + d.grade + '</div><div class="deal-score-sub">' + d.score + '/100</div></div>'
+        + '<div>'
+        +   '<div class="deal-title" onclick="openListing(\'' + (d.listing_url || '#') + '\',\'\',\'' + (d.address || '').replace(/'/g, '') + '\')">' + (d.address || '') + '</div>'
+        +   '<div class="deal-sub">' + specs + '</div>'
+        +   (mtags ? '<div class="deal-tags">' + mtags + '</div>' : '')
+        +   '<div class="deal-reasons">' + reasons + '</div>'
+        + '</div>'
+        + '<div class="deal-right">'
+        +   '<div class="deal-ask">ASK <b>' + fmtPrice(d.ask) + '</b></div>'
+        +   '<div class="deal-exp">EXPECTED CLOSE <b>' + fmtPrice(d.expected_close) + '</b></div>'
+        +   '<div class="deal-range">range ' + fmtPrice(d.expected_low) + ' – ' + fmtPrice(d.expected_high) + '</div>'
+        +   (d.est_savings > 0 ? '<div class="deal-save">↓ ' + fmtPrice(d.est_savings) + ' vs ask (' + d.expected_slide_pct + '%)</div>' : '')
+        +   '<div class="deal-cohort">based on ' + d.cohort_n + ' closed ' + d.cut_count + (d.cut_count >= 3 ? '+' : '') + '-cut sellers' + (d.cut_again_pct != null ? ' · ' + d.cut_again_pct + '% cut again' : '') + '</div>'
+        + '</div>'
+        + '</div>';
+    }).join('');
+    _dealsLoaded = true;
+  } catch (e) {
+    el.innerHTML = '<div class="loading">Deal scores unavailable — check back after the next data poll.</div>';
   }
 }
 

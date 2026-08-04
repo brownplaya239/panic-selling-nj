@@ -418,6 +418,69 @@ WHERE t.cut_n >= 10 AND (t.cut_n + t.base_n) >= 30;
 
 GRANT SELECT ON cut_edge TO anon, authenticated;
 
+-- ============================================================
+-- DEAL SCREENER: capitulation scores + graded bid guidance
+-- ============================================================
+
+-- DEAL SCORES: one row per active listing with cuts — rebuilt by the poller each
+-- run (same materialize-on-poll architecture as the frontend views)
+CREATE TABLE IF NOT EXISTS deal_scores (
+  listing_id        TEXT PRIMARY KEY,
+  computed_at       TIMESTAMPTZ DEFAULT NOW(),
+  score             INTEGER NOT NULL,
+  grade             TEXT NOT NULL,               -- 'A+' | 'A' | 'B+' | 'B' | 'C'
+  ask               BIGINT NOT NULL,
+  expected_close    BIGINT,                      -- ask × (1 − median cohort slide)
+  expected_low      BIGINT,                      -- deeper (p75 slide)
+  expected_high     BIGINT,                      -- shallower (p25 slide)
+  expected_slide_pct NUMERIC(5,2),
+  est_savings       BIGINT,
+  cohort_n          INTEGER,                     -- graded closings behind the estimate
+  cut_count         INTEGER,
+  dom               INTEGER,
+  days_since_cut    INTEGER,
+  cut_interval      INTEGER,                     -- median days between this listing's cuts
+  cut_again_pct     INTEGER,                     -- historical share of k-cutters that cut again
+  ppsqft            INTEGER,
+  town_avg_ppsqft   INTEGER,
+  motivation_tags   TEXT[],
+  reasons           TEXT[],
+  address           TEXT, city TEXT, county TEXT, property_type TEXT,
+  bedrooms          INTEGER, bathrooms NUMERIC(4,1), sqft INTEGER,
+  photo_url         TEXT, listing_url TEXT
+);
+ALTER TABLE deal_scores ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public read deal scores" ON deal_scores FOR SELECT USING (true);
+
+-- DEAL PREDICTIONS: append-only log — every (listing, ask) gets ONE stored
+-- prediction so the Outcome Engine can grade it against the actual close.
+CREATE TABLE IF NOT EXISTS deal_predictions (
+  id              BIGSERIAL PRIMARY KEY,
+  listing_id      TEXT NOT NULL,
+  predicted_at    TIMESTAMPTZ DEFAULT NOW(),
+  ask             BIGINT NOT NULL,
+  expected_close  BIGINT NOT NULL,
+  expected_low    BIGINT,
+  expected_high   BIGINT,
+  score           INTEGER,
+  cut_count       INTEGER,
+  UNIQUE (listing_id, ask)
+);
+ALTER TABLE deal_predictions ENABLE ROW LEVEL SECURITY;  -- service key only
+
+-- VIEW: grade every prediction whose listing has since closed
+CREATE OR REPLACE VIEW prediction_outcomes AS
+SELECT
+  p.listing_id, p.predicted_at, p.ask, p.expected_close,
+  p.expected_low, p.expected_high, p.score, p.cut_count,
+  l.close_price, l.close_date, l.city, l.county,
+  ROUND(((l.close_price - p.expected_close)::NUMERIC / l.close_price) * 100, 2) AS error_pct,
+  (l.close_price BETWEEN LEAST(p.expected_low, p.expected_high)
+                     AND GREATEST(p.expected_low, p.expected_high)) AS within_range
+FROM deal_predictions p
+JOIN listings l ON l.id = p.listing_id
+WHERE l.status = 'Closed' AND l.close_price > 0;
+
 -- SUBSCRIBERS: buyer alert preferences
 CREATE TABLE IF NOT EXISTS subscribers (
   id                BIGSERIAL PRIMARY KEY,

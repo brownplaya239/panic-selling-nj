@@ -411,6 +411,182 @@ async function processListings(rawListings) {
   return { dropsDetected, newListings, detectedDropsForEmail };
 }
 
+// ── DEAL SCREENER: capitulation scores + bid guidance ─────────────────────────
+// Empirical, not modeled: expected close = ask × (1 − cohort slide), where the
+// slide distribution is measured from closed listings that were at the same cut
+// count. Every (listing, ask) prediction is stored and later graded against the
+// actual close via the prediction_outcomes view — the TickerDesk loop for bids.
+
+const MOTIVATION_WORDS = [
+  'motivated', 'bring all offers', 'all offers', 'priced to sell', 'quick close',
+  'relocat', 'estate sale', 'as-is', 'as is', 'vacant', 'must sell', 'make an offer',
+  'below market', 'investor', 'handyman', 'tlc', 'cash only', 'short sale', 'probate',
+];
+
+function pctile(sorted, p) {
+  if (!sorted.length) return null;
+  return sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * p))];
+}
+
+async function pageAll(table, select, filters = q => q) {
+  const out = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await filters(
+      supabase.from(table).select(select).range(from, from + 999)
+    );
+    if (error) { console.error(`${table} page error:`, error.message); break; }
+    out.push(...(data || []));
+    if (!data || data.length < 1000) break;
+  }
+  return out;
+}
+
+async function computeDealScores() {
+  console.log('\n💎 Computing deal scores...');
+  // All cut history, grouped per listing (ordered by time)
+  const dropRows = await pageAll('price_drops', 'listing_id, price_after, detected_at',
+    q => q.order('detected_at', { ascending: true }));
+  const cutsByListing = new Map();
+  for (const r of dropRows) {
+    if (!cutsByListing.has(r.listing_id)) cutsByListing.set(r.listing_id, []);
+    cutsByListing.get(r.listing_id).push(r);
+  }
+  const cutIds = [...cutsByListing.keys()];
+
+  // Listing rows for every cutter (closed → training, active → targets)
+  const fields = 'id,status,close_price,current_price,days_on_market,description,city,county,address,photo_url,listing_url,bedrooms,bathrooms,sqft,property_type';
+  const listings = [];
+  for (let i = 0; i < cutIds.length; i += 200) {
+    const { data } = await supabase.from('listings').select(fields).in('id', cutIds.slice(i, i + 200));
+    listings.push(...(data || []));
+  }
+
+  // 1. TRAINING: slide from the k-th cut price → close, for k = 1, 2, 3(+)
+  const slides = { 1: [], 2: [], 3: [] };
+  const reachedK = { 1: 0, 2: 0, 3: 0 };
+  const cutAgain = { 1: 0, 2: 0, 3: 0 };
+  for (const l of listings) {
+    if (l.status !== 'Closed' || !l.close_price) continue;
+    const cuts = cutsByListing.get(l.id) || [];
+    for (const k of [1, 2, 3]) {
+      if (cuts.length >= k) {
+        reachedK[k]++;
+        if (cuts.length > k) cutAgain[k]++;
+        const pk = cuts[k - 1].price_after;
+        if (pk > 0) slides[k].push(((pk - l.close_price) / pk) * 100);
+      }
+    }
+  }
+  for (const k of [1, 2, 3]) slides[k].sort((a, b) => a - b);
+  const cohort = k => {
+    const kk = Math.min(3, k);
+    return {
+      n: slides[kk].length,
+      p25: pctile(slides[kk], 0.25), p50: pctile(slides[kk], 0.50), p75: pctile(slides[kk], 0.75),
+      cutAgainPct: reachedK[kk] ? Math.round(100 * cutAgain[kk] / reachedK[kk]) : null,
+    };
+  };
+  console.log(`  Training cohorts: 1-cut n=${slides[1].length} (med ${pctile(slides[1],.5)?.toFixed(1)}%), 2-cut n=${slides[2].length} (med ${pctile(slides[2],.5)?.toFixed(1)}%), 3+-cut n=${slides[3].length} (med ${pctile(slides[3],.5)?.toFixed(1)}%)`);
+
+  // Town context for softness + pricing gap
+  const { data: townOut } = await supabase.from('town_outcomes').select('city,pct_at_or_over_ask');
+  const softMap = new Map((townOut || []).map(t => [t.city, 100 - t.pct_at_or_over_ask]));
+  const { data: townStats } = await supabase.from('town_stats').select('city,median_dom');
+  const domMap = new Map((townStats || []).map(t => [t.city, t.median_dom]));
+  const { data: ppsqftRows } = await supabase.from('all_active_listings').select('listing_id,ppsqft,town_avg_ppsqft').in('listing_id', cutIds.slice(0, 1000));
+  const ppMap = new Map((ppsqftRows || []).map(r => [r.listing_id, r]));
+
+  // 2. SCORE every ACTIVE cutter
+  const now = Date.now();
+  const rows = [];
+  for (const l of listings) {
+    if (l.status !== 'Active' || !l.current_price) continue;
+    const cuts = cutsByListing.get(l.id) || [];
+    if (!cuts.length) continue;
+    const k = cuts.length;
+    const co = cohort(k);
+    if (!co.n || co.n < 20) continue; // never guide off a thin cohort
+
+    const lastCutAt = new Date(cuts[cuts.length - 1].detected_at).getTime();
+    const daysSinceCut = Math.floor((now - lastCutAt) / 86400000);
+    let cutInterval = null;
+    if (cuts.length >= 2) {
+      const gaps = [];
+      for (let i = 1; i < cuts.length; i++)
+        gaps.push((new Date(cuts[i].detected_at) - new Date(cuts[i - 1].detected_at)) / 86400000);
+      cutInterval = Math.round(gaps.sort((a, b) => a - b)[Math.floor(gaps.length / 2)]);
+    }
+    const pp = ppMap.get(l.id) || {};
+    const townSoft = softMap.get(l.city) ?? 45;         // % selling under ask
+    const townDom = domMap.get(l.city) ?? 35;
+    const desc = (l.description || '').toLowerCase();
+    const tags = MOTIVATION_WORDS.filter(w => desc.includes(w))
+      .map(w => w === 'relocat' ? 'relocating' : w.replace(/ /g, '-').toUpperCase());
+
+    // Editorial component weights (v1) — the grading loop earns the right to tune these
+    const fatigue = Math.min(100, (k === 1 ? 30 : k === 2 ? 55 : 75)
+      + Math.min(25, Math.max(0, (l.days_on_market || 0) - townDom) / 3));
+    const softness = Math.min(100, townSoft * 1.6);
+    const premium = (pp.ppsqft > 0 && pp.town_avg_ppsqft > 0)
+      ? ((pp.ppsqft - pp.town_avg_ppsqft) / pp.town_avg_ppsqft) * 100 : 0;
+    const pricingPressure = Math.min(100, Math.max(0, premium * 4));
+    const motivation = Math.min(100, tags.length * 35);
+    const velocity = cutInterval ? Math.min(100, Math.max(0, (45 - cutInterval) * 3)) : (daysSinceCut < 21 ? 40 : 15);
+    const score = Math.round(fatigue * 0.35 + softness * 0.20 + pricingPressure * 0.15 + motivation * 0.20 + velocity * 0.10);
+    const grade = score >= 80 ? 'A+' : score >= 68 ? 'A' : score >= 56 ? 'B+' : score >= 44 ? 'B' : 'C';
+
+    const ask = l.current_price;
+    const expClose = Math.round(ask * (1 - co.p50 / 100));
+    const reasons = [
+      `${k} price cut${k > 1 ? 's' : ''}`,
+      `${l.days_on_market || 0} DOM (town median ${townDom})`,
+      co.cutAgainPct != null ? `${co.cutAgainPct}% of ${Math.min(3, k)}-cutters cut again` : null,
+      cutInterval ? `cuts every ~${cutInterval}d, last ${daysSinceCut}d ago` : `last cut ${daysSinceCut}d ago`,
+      premium > 5 ? `$${pp.ppsqft}/sf is ${Math.round(premium)}% above town avg` : (premium < -5 ? `$${pp.ppsqft}/sf is ${Math.round(-premium)}% below town avg` : null),
+      townSoft ? `${townSoft}% of ${l.city} homes sell under ask` : null,
+    ].filter(Boolean);
+
+    rows.push({
+      listing_id: l.id, score, grade, ask,
+      expected_close: expClose,
+      expected_low: Math.round(ask * (1 - co.p75 / 100)),
+      expected_high: Math.round(ask * (1 - co.p25 / 100)),
+      expected_slide_pct: Math.round(co.p50 * 100) / 100,
+      est_savings: ask - expClose,
+      cohort_n: co.n, cut_count: k, dom: l.days_on_market || 0,
+      days_since_cut: daysSinceCut, cut_interval: cutInterval,
+      cut_again_pct: co.cutAgainPct,
+      ppsqft: pp.ppsqft || null, town_avg_ppsqft: pp.town_avg_ppsqft || null,
+      motivation_tags: tags, reasons,
+      address: l.address, city: l.city, county: l.county, property_type: l.property_type,
+      bedrooms: l.bedrooms, bathrooms: l.bathrooms, sqft: l.sqft,
+      photo_url: l.photo_url, listing_url: l.listing_url,
+      computed_at: new Date().toISOString(),
+    });
+  }
+
+  // Rebuild deal_scores
+  const { error: delErr } = await supabase.from('deal_scores').delete().neq('listing_id', '');
+  if (delErr) { console.error('deal_scores clear error:', delErr.message); return; }
+  for (let i = 0; i < rows.length; i += 200) {
+    const { error } = await supabase.from('deal_scores').insert(rows.slice(i, i + 200));
+    if (error) console.error('deal_scores insert error:', error.message);
+  }
+
+  // Append predictions (one per listing+ask — duplicates ignored)
+  const preds = rows.map(r => ({
+    listing_id: r.listing_id, ask: r.ask, expected_close: r.expected_close,
+    expected_low: r.expected_low, expected_high: r.expected_high,
+    score: r.score, cut_count: r.cut_count,
+  }));
+  for (let i = 0; i < preds.length; i += 200) {
+    const { error } = await supabase.from('deal_predictions')
+      .upsert(preds.slice(i, i + 200), { onConflict: 'listing_id,ask', ignoreDuplicates: true });
+    if (error) console.error('deal_predictions error:', error.message);
+  }
+  console.log(`💎 Deal scores: ${rows.length} active cutters scored & predictions stored`);
+}
+
 // ── MAIN POLL FUNCTION ────────────────────────────────────────────────────────
 
 async function poll() {
@@ -434,6 +610,11 @@ async function poll() {
     const { error: refreshErr } = await supabase.rpc('refresh_frontend_views');
     if (refreshErr) console.error('View refresh error:', refreshErr.message);
     else console.log('🔄 Frontend views refreshed');
+
+    // Deal Screener: rescore active cutters + store predictions (fail-soft:
+    // scoring must never break the poll)
+    try { await computeDealScores(); }
+    catch (e) { console.error('Deal score error:', e.message); }
 
     if (detectedDropsForEmail.length > 0) await notifySubscribers(detectedDropsForEmail);
 
@@ -679,4 +860,4 @@ if (isMain) {
   }
 }
 
-export { buildAlertEmail, heatBadge, cutEdgeLine, fetchTownHeat, fetchCutEdge, matchesSub, normalizeListing };
+export { buildAlertEmail, heatBadge, cutEdgeLine, fetchTownHeat, fetchCutEdge, matchesSub, normalizeListing, computeDealScores };
