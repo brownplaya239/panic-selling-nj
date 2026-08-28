@@ -324,6 +324,44 @@
   .st-over{color:var(--green);} .st-under{color:var(--red);} .st-even{color:var(--text3);}
   .st-new{color:var(--amber,#f59e0b);font-size:8px;letter-spacing:.06em;}
   .sales-foot{font-family:var(--mono);font-size:9px;color:var(--text3);line-height:1.6;margin-top:14px;padding:10px 12px;background:var(--bg2);border:1px solid var(--border);}
+  /* LEADERBOARDS */
+  #modeBtnBoards.active{background:#d4af37;border-color:#d4af37;color:#0b0f1a;font-weight:600;opacity:1;}
+  .boards-wrap{padding:18px 16px;max-width:1000px;}
+  .boards-title-row{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px;margin-bottom:12px;}
+  .boards-name{font-family:var(--mono);font-size:13px;font-weight:700;letter-spacing:.1em;color:#d4af37;}
+  .boards-period{font-family:var(--mono);font-size:9px;color:var(--text3);}
+  .boards-beta-note{font-family:var(--mono);font-size:9.5px;color:var(--amber,#f59e0b);border:1px solid rgba(245,158,11,.3);background:rgba(245,158,11,.05);padding:8px 12px;margin-bottom:12px;line-height:1.5;}
+  .boards-beta-note b{color:var(--amber,#f59e0b);}
+  .board-row{display:grid;grid-template-columns:40px 1fr auto;gap:12px;padding:12px 6px;border-bottom:1px solid var(--border);align-items:center;cursor:pointer;transition:background .1s;}
+  .board-row:hover{background:rgba(56,189,248,.03);}
+  .board-row.top3 .br-rank{color:#d4af37;}
+  .br-rank{font-family:var(--mono);font-size:16px;font-weight:700;color:var(--text3);text-align:center;}
+  .br-name{font-size:13px;font-weight:600;color:var(--text);}
+  .br-sub{font-family:var(--mono);font-size:9.5px;color:var(--text3);margin-top:2px;}
+  .br-stats{text-align:right;font-family:var(--mono);}
+  .br-vol{font-size:14px;font-weight:700;color:var(--text);}
+  .br-sides{font-size:9.5px;color:var(--text2);margin-top:2px;}
+  /* PROFILE */
+  .profile-back{background:none;border:1px solid var(--border2);color:var(--text3);font-family:var(--mono);font-size:10px;padding:5px 12px;cursor:pointer;margin-bottom:14px;}
+  .profile-back:hover{color:var(--text);}
+  .profile-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;border:1px solid var(--border);background:var(--bg2);padding:16px;margin-bottom:14px;}
+  .profile-name{font-size:17px;font-weight:700;color:var(--text);}
+  .profile-office{font-family:var(--mono);font-size:10px;color:var(--text2);margin-top:3px;}
+  .profile-rank{font-family:var(--mono);font-size:11px;color:#d4af37;margin-top:8px;}
+  .profile-actions{display:flex;gap:8px;flex-wrap:wrap;}
+  .btn-card{padding:7px 14px;background:#d4af37;border:1px solid #d4af37;color:#0b0f1a;font-family:var(--mono);font-size:10px;font-weight:600;cursor:pointer;}
+  .btn-claim{padding:7px 14px;background:none;border:1px solid var(--border2);color:var(--text2);font-family:var(--mono);font-size:10px;cursor:pointer;}
+  .btn-claim:hover{border-color:var(--cyan);color:var(--cyan);}
+  .profile-stats{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
+  .profile-lists{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .plist{border:1px solid var(--border);}
+  .plist-h{font-family:var(--mono);font-size:9px;letter-spacing:.08em;color:var(--text3);padding:8px 12px;background:var(--bg2);border-bottom:1px solid var(--border);}
+  .plist-row{display:flex;justify-content:space-between;gap:10px;padding:7px 12px;border-bottom:1px solid var(--border);font-family:var(--mono);font-size:10px;color:var(--text2);}
+  .plist-row:last-child{border-bottom:none;}
+  .plist-row b{color:var(--text);}
+  @media(max-width:640px){.profile-lists{grid-template-columns:1fr;}}
+  .boards-foot{font-family:var(--mono);font-size:9px;color:var(--text3);line-height:1.65;margin-top:16px;padding:11px 12px;background:var(--bg2);border:1px solid var(--border);}
+  .boards-foot b{color:var(--text2);}
   /* CROSS-LINKS */
   .jump-link{color:var(--cyan);cursor:pointer;font-family:var(--mono);font-size:9px;white-space:nowrap;opacity:.85;}
   .jump-link:hover{opacity:1;text-decoration:underline;}
@@ -476,6 +514,7 @@
   <button class="mode-btn" id="modeBtnTowns" onclick="setMode('towns')">★ Best Towns to Buy</button>
   <button class="mode-btn" id="modeBtnDeals" onclick="setMode('deals')">💎 Deal Screener</button>
   <button class="mode-btn" id="modeBtnSales" onclick="setMode('sales')">📋 Recent Sales</button>
+  <button class="mode-btn" id="modeBtnBoards" onclick="setMode('boards')">🏆 Leaderboards</button>
 </div>
 
 <!-- FILTER BAR -->
@@ -646,6 +685,62 @@
     </div>
     <div id="salesResults"><div class="loading"><span class="spinner"></span>Loading recorded sales...</div></div>
     <div class="sales-foot">Closings sourced from MORMLS recorded transactions. "vs ask" compares the recorded closing price to the final asking price. New closings appear as the MLS records them (typically within days of settlement).</div>
+  </div>
+</div>
+
+<!-- LEADERBOARDS VIEW -->
+<div id="boardsView" style="display:none">
+  <div class="boards-wrap">
+    <div class="boards-title-row">
+      <div class="boards-name">MOMLS MARKET LEADERBOARDS</div>
+      <div class="boards-period" id="boardsPeriod"></div>
+    </div>
+    <div class="sales-controls" id="boardsControls">
+      <button class="sv-toggle active" id="bdOffices" onclick="setBoardType('office')">🏢 Brokerages</button>
+      <button class="sv-toggle" id="bdAgents" onclick="setBoardType('agent')">👤 Agents <span class="deals-beta" style="margin:0 0 0 4px">BETA</span></button>
+      <select class="df-select" id="bdWindow" onchange="renderBoardRows()">
+        <option value="1y">Trailing 12 months</option><option value="ytd">Year to date</option>
+        <option value="6m">Last 6 months</option><option value="1m">Last 30 days</option>
+      </select>
+      <select class="df-select" id="bdMetric" onchange="renderBoardRows()">
+        <option value="volume">Rank by $ volume</option><option value="sides">Rank by sides</option>
+      </select>
+      <span class="df-count" id="bdCount"></span>
+    </div>
+    <div class="boards-beta-note" id="boardsBetaNote" style="display:none">
+      ⚠ Agent rankings are in <b>verification beta</b> — figures are provisional until agents verify their profiles.
+      Rankings reflect MLS-recorded transaction sides only; co-agented sides are split 50/50.
+    </div>
+    <div id="boardsResults"><div class="loading"><span class="spinner"></span>Computing rankings...</div></div>
+    <div id="profileView" style="display:none"></div>
+    <div class="boards-foot">
+      <b>Methodology.</b> Rankings are computed solely from MLS-recorded closed transactions in Monmouth &amp; Ocean County, NJ,
+      credited to the listing and buyer agents/offices of record. Co-agented sides receive 50% credit each. Recorded closings
+      outside a $50K–$25M sanity band, or closing more than 3× above / 4× below final asking, are excluded as likely data errors.
+      Out-of-MLS ("non-member") sides are excluded. Rankings state exactly what they measure — e.g. "#1 by closed volume" — and
+      are not an endorsement or a claim of being the "best" professional. No payment affects rankings.
+      <span id="boardsSrcNotice"></span>
+    </div>
+  </div>
+</div>
+
+<!-- CLAIM MODAL -->
+<div id="claimModal" class="modal-overlay" style="display:none" onclick="if(event.target.id==='claimModal')closeClaimModal()">
+  <div class="modal-box" style="max-width:420px">
+    <button class="modal-close" onclick="closeClaimModal()">×</button>
+    <div class="modal-inner">
+      <div class="modal-step-label">CLAIM PROFILE</div>
+      <div class="modal-q" id="claimSubject" style="margin-bottom:14px"></div>
+      <input class="modal-input" id="clName" placeholder="Your full name *" style="margin-bottom:8px">
+      <input class="modal-input" id="clEmail" placeholder="Email (ideally your MLS email) *" style="margin-bottom:8px">
+      <input class="modal-input" id="clPhone" placeholder="Phone (optional)" style="margin-bottom:8px">
+      <input class="modal-input" id="clLicense" placeholder="NJ license # (optional, speeds verification)" style="margin-bottom:8px">
+      <div class="modal-err" id="claimErr"></div>
+      <div class="modal-nav" style="border:none;padding-top:4px">
+        <span style="font-family:var(--mono);font-size:9px;color:var(--text3)">We verify against MLS records.<br>Contact info is never published.</span>
+        <button class="modal-next-btn" id="claimSubmitBtn" onclick="submitClaim()">Submit Claim</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1323,8 +1418,9 @@ function setMode(mode) {
   document.getElementById('modeBtnTowns').classList.toggle('active', mode === 'towns');
   document.getElementById('modeBtnDeals').classList.toggle('active', mode === 'deals');
   document.getElementById('modeBtnSales').classList.toggle('active', mode === 'sales');
+  document.getElementById('modeBtnBoards').classList.toggle('active', mode === 'boards');
   // Standalone panels swap the list UI out entirely
-  const listView = mode !== 'comps' && mode !== 'towns' && mode !== 'deals' && mode !== 'sales';
+  const listView = mode !== 'comps' && mode !== 'towns' && mode !== 'deals' && mode !== 'sales' && mode !== 'boards';
   document.querySelector('.filter-bar').style.display     = listView ? '' : 'none';
   document.querySelector('.bed-filter').style.display     = listView ? '' : 'none';
   document.querySelector('.area-tabs-wrap').style.display = listView ? '' : 'none';
@@ -1334,6 +1430,7 @@ function setMode(mode) {
   document.getElementById('townsView').style.display      = mode === 'towns' ? 'block' : 'none';
   document.getElementById('dealsView').style.display      = mode === 'deals' ? 'block' : 'none';
   document.getElementById('salesView').style.display      = mode === 'sales' ? 'block' : 'none';
+  document.getElementById('boardsView').style.display     = mode === 'boards' ? 'block' : 'none';
   if (!listView) {
     document.getElementById('alertCtaBar').style.display  = 'none';
     document.getElementById('townStatsBar').style.display = 'none';
@@ -1356,6 +1453,11 @@ function setMode(mode) {
   if (mode === 'sales') {
     document.getElementById('headerMode').textContent = 'Recent Sales';
     renderSales();
+    return;
+  }
+  if (mode === 'boards') {
+    document.getElementById('headerMode').textContent = 'Market Leaderboards';
+    renderBoards();
     return;
   }
   currentArea = 'all';
@@ -1861,6 +1963,201 @@ function renderSalesTowns(rows) {
     }).join('') + '</tbody></table></div>';
 }
 
+// LEADERBOARDS — brokerage (public) + agent (verification beta) rankings
+let _boardType = 'office';
+let _boardRows = { office: null, agent: null };
+const WIN = {
+  '1y':  { sides: 'sides_1y',  vol: 'volume_1y',  label: 'Trailing 12 months' },
+  'ytd': { sides: 'sides_ytd', vol: 'volume_ytd', label: new Date().getFullYear() + ' year-to-date' },
+  '6m':  { sides: 'sides_6m',  vol: 'volume_6m',  label: 'Last 6 months' },
+  '1m':  { sides: 'sides_1m',  vol: 'volume_1m',  label: 'Last 30 days' },
+};
+function srcNotice() {
+  const d = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  return 'Based on information from Monmouth Ocean Regional REALTORS® MLS as of ' + d + '. Not an official MLS ranking; independently computed by MOMLS Market Leaderboards.';
+}
+async function renderBoards() {
+  document.getElementById('boardsSrcNotice').textContent = ' ' + srcNotice();
+  if (_boardRows.office && _boardRows.agent) { renderBoardRows(); return; }
+  try {
+    const [o, a] = await Promise.all([
+      sb.from('office_leaderboard').select('*').order('volume_1y', { ascending: false }).limit(500),
+      sb.from('agent_leaderboard').select('*').order('volume_1y', { ascending: false }).limit(1000),
+    ]);
+    if (o.error || a.error) throw (o.error || a.error);
+    _boardRows.office = o.data || [];
+    _boardRows.agent  = a.data || [];
+    renderBoardRows();
+  } catch (e) {
+    document.getElementById('boardsResults').innerHTML = '<div class="loading">Rankings unavailable — please try again shortly.</div>';
+  }
+}
+function setBoardType(t) {
+  _boardType = t;
+  document.getElementById('bdOffices').classList.toggle('active', t === 'office');
+  document.getElementById('bdAgents').classList.toggle('active', t === 'agent');
+  document.getElementById('boardsBetaNote').style.display = t === 'agent' ? 'block' : 'none';
+  renderBoardRows();
+}
+function renderBoardRows() {
+  const rows = _boardRows[_boardType];
+  if (!rows) return;
+  document.getElementById('profileView').style.display = 'none';
+  const el = document.getElementById('boardsResults');
+  el.style.display = 'block';
+  const w = WIN[document.getElementById('bdWindow').value] || WIN['1y'];
+  const metric = document.getElementById('bdMetric').value;
+  const key = metric === 'sides' ? w.sides : (w.vol || w.sides); // some windows rank by sides only
+  document.getElementById('boardsPeriod').textContent = w.label + ' · Monmouth & Ocean County, NJ';
+  const ranked = rows.filter(r => (r[key] || 0) > 0)
+    .sort((x, y) => (y[key] || 0) - (x[key] || 0)).slice(0, 25);
+  document.getElementById('bdCount').textContent = 'Top ' + ranked.length;
+  el.innerHTML = ranked.map((r, i) => {
+    const name = _boardType === 'office' ? r.office_name : r.agent_name;
+    const id = _boardType === 'office' ? r.office_id : r.agent_id;
+    const vol = r[w.vol];
+    return '<div class="board-row' + (i < 3 ? ' top3' : '') + '" onclick="openProfile(\'' + _boardType + '\',\'' + String(id).replace(/'/g, "\\'") + '\',' + (i + 1) + ')">'
+      + '<div class="br-rank">' + (i + 1) + '</div>'
+      + '<div><div class="br-name">' + name + '</div>'
+      + '<div class="br-sub">' + (_boardType === 'agent' ? (r.office_name || '') + ' · ' : '')
+      + r.active_count + ' active · ' + r.pending_count + ' pending</div></div>'
+      + '<div class="br-stats"><div class="br-vol">' + (vol != null ? fmtM(vol) : (r[w.sides] || 0) + ' sides') + '</div>'
+      + '<div class="br-sides">' + (r[w.sides] || 0) + ' sides' + (vol != null ? '' : ' (volume n/a this window)') + '</div></div>'
+      + '</div>';
+  }).join('') || '<div class="loading">No closings recorded in this window yet.</div>';
+}
+
+// PROFILE — the shareable landing page for a ranked agent/office
+let _profileCtx = null;
+async function openProfile(type, id, rank) {
+  const row = (_boardRows[type] || []).find(r => String(type === 'office' ? r.office_id : r.agent_id) === String(id));
+  if (!row) return;
+  const w = WIN[document.getElementById('bdWindow').value] || WIN['1y'];
+  const name = type === 'office' ? row.office_name : row.agent_name;
+  _profileCtx = { type, id, rank, row, w, name };
+  history.replaceState({}, '', '?lb=' + (type === 'office' ? 'o' : 'a') + ':' + encodeURIComponent(id));
+  document.getElementById('boardsResults').style.display = 'none';
+  const el = document.getElementById('profileView');
+  el.style.display = 'block';
+  const metric = document.getElementById('bdMetric').value === 'sides' ? 'closed sides' : 'closed volume';
+  const tile = (v, l) => '<div class="pulse-tile"><div class="v">' + v + '</div><div class="l">' + l + '</div></div>';
+  el.innerHTML =
+    '<button class="profile-back" onclick="closeProfile()">← Back to rankings</button>'
+    + '<div class="profile-head"><div>'
+    + '<div class="profile-name">' + name + '</div>'
+    + (type === 'agent' ? '<div class="profile-office">' + (row.office_name || '') + '</div>' : '')
+    + '<div class="profile-rank">#' + rank + ' by ' + metric + ' · ' + w.label + ' · Monmouth &amp; Ocean County</div>'
+    + '</div><div class="profile-actions">'
+    + '<button class="btn-card" onclick="downloadCard()">⬇ Social Card</button>'
+    + '<button class="btn-claim" onclick="openClaimModal()">Claim this profile</button>'
+    + '</div></div>'
+    + '<div class="profile-stats">'
+    + tile(row.volume_1y != null ? fmtM(row.volume_1y) : '--', '12MO VOLUME')
+    + tile(row.sides_1y || 0, '12MO SIDES')
+    + (type === 'agent' ? tile((row.list_sides_1y || 0) + ' / ' + (row.buy_sides_1y || 0), 'LIST / BUY') : '')
+    + tile(row.volume_ytd != null ? fmtM(row.volume_ytd) : '--', 'YTD VOLUME')
+    + tile(row.active_count, 'ACTIVE NOW')
+    + tile(row.pending_count, 'PENDING')
+    + '</div>'
+    + '<div class="profile-lists">'
+    + '<div class="plist"><div class="plist-h">ACTIVE LISTINGS</div><div id="pActives"><div class="plist-row">Loading…</div></div></div>'
+    + '<div class="plist"><div class="plist-h">RECENT SALES (MLS-RECORDED)</div><div id="pSales"><div class="plist-row">Loading…</div></div></div>'
+    + '</div>'
+    + '<div class="br-sub" style="margin-top:12px">' + srcNotice() + '</div>';
+  // live listings for the profile
+  try {
+    const filt = type === 'agent'
+      ? 'agent_id.eq.' + id : 'list_office_id.eq."' + id + '",office_name.eq."' + name + '"';
+    const buyFilt = type === 'agent'
+      ? 'buyer_agent_id.eq.' + id : 'buyer_office_id.eq."' + id + '",buyer_office_name.eq."' + name + '"';
+    const [act, sold] = await Promise.all([
+      sb.from('listings').select('address,city,current_price').or(filt).eq('status', 'Active').order('current_price', { ascending: false }).limit(6),
+      sb.from('listings').select('address,city,close_price,close_date').or(filt + ',' + buyFilt).eq('status', 'Closed').gt('close_price', 0).order('close_date', { ascending: false }).limit(6),
+    ]);
+    const rowsHtml = (rows, priceKey, dateKey) => (rows || []).map(r =>
+      '<div class="plist-row"><span>' + r.address + '</span><span><b>' + fmtPrice(r[priceKey]) + '</b>'
+      + (dateKey && r[dateKey] ? ' · ' + new Date(r[dateKey] + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '') + '</span></div>'
+    ).join('') || '<div class="plist-row">None on record</div>';
+    document.getElementById('pActives').innerHTML = rowsHtml(act.data, 'current_price');
+    document.getElementById('pSales').innerHTML = rowsHtml(sold.data, 'close_price', 'close_date');
+  } catch (e) { /* profile lists are a bonus */ }
+}
+function closeProfile() {
+  history.replaceState({}, '', window.location.pathname);
+  document.getElementById('profileView').style.display = 'none';
+  document.getElementById('boardsResults').style.display = 'block';
+}
+
+// SOCIAL CARD — canvas-rendered PNG with period + source notice baked in
+function downloadCard() {
+  const p = _profileCtx; if (!p) return;
+  const c = document.createElement('canvas'); c.width = 1080; c.height = 1080;
+  const x = c.getContext('2d');
+  x.fillStyle = '#0b0f1a'; x.fillRect(0, 0, 1080, 1080);
+  x.strokeStyle = '#d4af37'; x.lineWidth = 6; x.strokeRect(40, 40, 1000, 1000);
+  x.fillStyle = '#d4af37'; x.font = '600 34px monospace'; x.textAlign = 'center';
+  x.fillText('MOMLS MARKET LEADERBOARDS', 540, 150);
+  x.fillStyle = '#7a90b0'; x.font = '26px monospace';
+  x.fillText('MONMOUTH & OCEAN COUNTY, NJ', 540, 195);
+  x.fillStyle = '#d4af37'; x.font = '700 150px monospace';
+  x.fillText('#' + p.rank, 540, 400);
+  const metric = document.getElementById('bdMetric').value === 'sides' ? 'BY CLOSED SIDES' : 'BY CLOSED VOLUME';
+  x.fillStyle = '#e2e8f0'; x.font = '600 34px monospace';
+  x.fillText((p.type === 'office' ? 'BROKERAGE ' : 'AGENT ') + metric, 540, 460);
+  x.font = '700 44px sans-serif';
+  const nm = p.name.length > 38 ? p.name.slice(0, 37) + '…' : p.name;
+  x.fillText(nm, 540, 560);
+  if (p.type === 'agent' && p.row.office_name) {
+    x.fillStyle = '#7a90b0'; x.font = '28px sans-serif';
+    const of = p.row.office_name.length > 44 ? p.row.office_name.slice(0, 43) + '…' : p.row.office_name;
+    x.fillText(of, 540, 605);
+  }
+  const w = p.w;
+  const vol = p.row[w.vol] != null ? fmtM(p.row[w.vol]) : null;
+  x.fillStyle = '#34d399'; x.font = '700 56px monospace';
+  x.fillText((vol ? vol + '  ·  ' : '') + (p.row[w.sides] || 0) + ' sides', 540, 710);
+  x.fillStyle = '#7a90b0'; x.font = '28px monospace';
+  x.fillText(w.label + ' · closed transactions of record', 540, 765);
+  x.fillStyle = '#3d5470'; x.font = '20px monospace';
+  x.fillText('momls.netlify.app/?lb=' + (p.type === 'office' ? 'o' : 'a') + ':' + p.id, 540, 900);
+  const notice = srcNotice();
+  x.font = '15px monospace';
+  x.fillText(notice.slice(0, 78), 540, 950);
+  x.fillText(notice.slice(78, 160), 540, 975);
+  const aTag = document.createElement('a');
+  aTag.download = 'momls-leaderboard-' + p.type + '-' + p.id + '.png';
+  aTag.href = c.toDataURL('image/png');
+  aTag.click();
+}
+
+// CLAIM FLOW — writes to profile_claims (insert-only for anon)
+function openClaimModal() {
+  const p = _profileCtx; if (!p) return;
+  document.getElementById('claimSubject').textContent = p.name + ' — ' + (p.type === 'office' ? 'Brokerage' : 'Agent') + ' profile';
+  document.getElementById('claimErr').textContent = '';
+  document.getElementById('claimModal').style.display = 'flex';
+}
+function closeClaimModal() { document.getElementById('claimModal').style.display = 'none'; }
+async function submitClaim() {
+  const p = _profileCtx; if (!p) return;
+  const name = document.getElementById('clName').value.trim();
+  const email = document.getElementById('clEmail').value.trim();
+  const err = document.getElementById('claimErr');
+  if (!name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { err.textContent = 'Name and a valid email are required.'; return; }
+  const btn = document.getElementById('claimSubmitBtn');
+  btn.disabled = true; btn.textContent = 'Submitting…';
+  const { error } = await sb.from('profile_claims').insert({
+    subject_type: p.type, subject_id: String(p.id), subject_name: p.name,
+    claimant_name: name, email,
+    phone: document.getElementById('clPhone').value.trim() || null,
+    license_no: document.getElementById('clLicense').value.trim() || null,
+  });
+  btn.disabled = false; btn.textContent = 'Submit Claim';
+  if (error) { err.textContent = 'Could not submit — please try again.'; return; }
+  closeClaimModal();
+  showToast('Claim submitted — we\'ll verify against MLS records and follow up by email.');
+}
+
 // RESET ALL FILTERS
 function resetFilters() {
   currentArea = 'all';
@@ -2200,6 +2497,20 @@ async function init() {
   // Check for unsubscribe token in URL
   const unsub = new URLSearchParams(window.location.search).get('unsub');
   if (unsub) handleUnsubscribe(unsub);
+  // Leaderboard deep link: ?lb=a:AGENTID or ?lb=o:OFFICEID (shared profile URLs)
+  const lb = new URLSearchParams(window.location.search).get('lb');
+  if (lb && /^[ao]:/.test(lb)) {
+    const type = lb[0] === 'o' ? 'office' : 'agent';
+    const id = decodeURIComponent(lb.slice(2));
+    setMode('boards');
+    _whenReady(() => _boardRows[type], () => {
+      if (type === 'agent') setBoardType('agent');
+      const key = document.getElementById('bdMetric').value === 'sides' ? WIN['1y'].sides : WIN['1y'].vol;
+      const ranked = _boardRows[type].filter(r => (r[key] || 0) > 0).sort((a, b) => (b[key] || 0) - (a[key] || 0));
+      const idx = ranked.findIndex(r => String(type === 'office' ? r.office_id : r.agent_id) === String(id));
+      if (idx >= 0) openProfile(type, id, idx + 1);
+    });
+  }
 }
 
 init();

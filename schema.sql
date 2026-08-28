@@ -555,6 +555,25 @@ GROUP BY s.oid;
 
 GRANT SELECT ON office_leaderboard TO anon, authenticated;
 
+-- PROFILE CLAIMS: agents/brokerages claiming their leaderboard profile
+-- (the verification-beta funnel). Anon can INSERT, never read.
+CREATE TABLE IF NOT EXISTS profile_claims (
+  id            BIGSERIAL PRIMARY KEY,
+  subject_type  TEXT NOT NULL,            -- 'agent' | 'office'
+  subject_id    TEXT NOT NULL,            -- agent_id or office_id from the leaderboard
+  subject_name  TEXT,
+  claimant_name TEXT NOT NULL,
+  email         TEXT NOT NULL,
+  phone         TEXT,
+  license_no    TEXT,
+  message       TEXT,
+  created_at    TIMESTAMPTZ DEFAULT NOW(),
+  verified      BOOLEAN DEFAULT FALSE
+);
+ALTER TABLE profile_claims ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Anyone can claim"    ON profile_claims FOR INSERT WITH CHECK (true);
+CREATE POLICY "No public read claims" ON profile_claims FOR SELECT USING (false);
+
 -- ============================================================
 -- DEAL SCREENER: capitulation scores + graded bid guidance
 -- ============================================================
