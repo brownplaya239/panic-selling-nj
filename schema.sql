@@ -574,6 +574,77 @@ ALTER TABLE profile_claims ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Anyone can claim"    ON profile_claims FOR INSERT WITH CHECK (true);
 CREATE POLICY "No public read claims" ON profile_claims FOR SELECT USING (false);
 
+-- Claim-review ergonomics (lightweight; reviewed in Supabase Table Editor)
+ALTER TABLE profile_claims ADD COLUMN IF NOT EXISTS status        TEXT DEFAULT 'pending';  -- pending | verified | rejected
+ALTER TABLE profile_claims ADD COLUMN IF NOT EXISTS reviewed_at   TIMESTAMPTZ;
+ALTER TABLE profile_claims ADD COLUMN IF NOT EXISTS reviewer_note TEXT;
+
+-- Public verified-state: exposes ONLY that an identity was verified — never
+-- claimant contact details. "Verified" means MOMLS matched the claimant to the
+-- MLS identity; it is not an MLS endorsement.
+CREATE OR REPLACE VIEW verified_profiles AS
+SELECT DISTINCT subject_type, subject_id
+FROM profile_claims
+WHERE verified = TRUE OR status = 'verified';
+GRANT SELECT ON verified_profiles TO anon, authenticated;
+
+-- VIEW: agent_town_leaderboard — per-town agent production (the "#3 in Brick"
+-- engine). Same guards/credit rules as agent_leaderboard; min 3 credited sides
+-- in-town so thin samples never rank. Towns use feed city names as-is — variants
+-- ("Neptune Township") rank separately by design until normalization is proven.
+CREATE OR REPLACE VIEW agent_town_leaderboard AS
+WITH sides AS (
+  SELECT agent_id AS aid, agent_name AS aname, office_name AS oname, city,
+         'list' AS side, close_price, close_date,
+         CASE WHEN co_list_agent_id IS NOT NULL THEN 0.5 ELSE 1.0 END AS credit
+  FROM listings
+  WHERE status = 'Closed' AND agent_id IS NOT NULL
+    AND close_price BETWEEN 50000 AND 25000000
+    AND (current_price <= 0 OR close_price BETWEEN current_price * 0.25 AND current_price * 3)
+    AND county IN ('Monmouth', 'Ocean')
+    AND COALESCE(agent_name, '') !~* 'non.?member' AND COALESCE(office_name, '') !~* 'non.?member'
+  UNION ALL
+  SELECT buyer_agent_id, buyer_agent_name, buyer_office_name, city,
+         'buy', close_price, close_date,
+         CASE WHEN co_buyer_agent_id IS NOT NULL THEN 0.5 ELSE 1.0 END
+  FROM listings
+  WHERE status = 'Closed' AND buyer_agent_id IS NOT NULL
+    AND close_price BETWEEN 50000 AND 25000000
+    AND (current_price <= 0 OR close_price BETWEEN current_price * 0.25 AND current_price * 3)
+    AND county IN ('Monmouth', 'Ocean')
+    AND COALESCE(buyer_agent_name, '') !~* 'non.?member' AND COALESCE(buyer_office_name, '') !~* 'non.?member'
+)
+SELECT city, aid AS agent_id, MAX(aname) AS agent_name, MAX(oname) AS office_name,
+  ROUND(SUM(credit) FILTER (WHERE close_date >= CURRENT_DATE - 365), 1)                    AS sides_1y,
+  COALESCE(SUM(close_price * credit) FILTER (WHERE close_date >= CURRENT_DATE - 365), 0)::BIGINT AS volume_1y,
+  ROUND(SUM(credit) FILTER (WHERE side = 'list' AND close_date >= CURRENT_DATE - 365), 1)  AS list_sides_1y,
+  ROUND(SUM(credit) FILTER (WHERE side = 'buy'  AND close_date >= CURRENT_DATE - 365), 1)  AS buy_sides_1y
+FROM sides
+GROUP BY city, aid
+HAVING SUM(credit) FILTER (WHERE close_date >= CURRENT_DATE - 365) >= 3;
+GRANT SELECT ON agent_town_leaderboard TO anon, authenticated;
+
+-- MONTHLY RANKING SNAPSHOTS: append-only rank history so "#7 · ↑2 from last
+-- month" is real recorded history, never reconstructed from mutable data.
+-- Written by the poller once per calendar month.
+CREATE TABLE IF NOT EXISTS leaderboard_snapshots (
+  id             BIGSERIAL PRIMARY KEY,
+  snapshot_month DATE NOT NULL,             -- first of month
+  entity_type    TEXT NOT NULL,             -- 'agent' | 'office'
+  entity_id      TEXT NOT NULL,
+  entity_name    TEXT,
+  scope          TEXT NOT NULL DEFAULT 'county:all',
+  window_key     TEXT NOT NULL DEFAULT '1y',
+  metric         TEXT NOT NULL,             -- 'volume' | 'sides'
+  rank           INTEGER NOT NULL,
+  closed_volume  BIGINT,
+  credited_sides NUMERIC(7,1),
+  created_at     TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (snapshot_month, entity_type, entity_id, scope, window_key, metric)
+);
+ALTER TABLE leaderboard_snapshots ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public read snapshots" ON leaderboard_snapshots FOR SELECT USING (true);
+
 -- ============================================================
 -- DEAL SCREENER: capitulation scores + graded bid guidance
 -- ============================================================

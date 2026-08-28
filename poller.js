@@ -619,6 +619,41 @@ async function computeDealScores() {
   console.log(`💎 Deal scores: ${rows.length} active cutters scored & predictions stored`);
 }
 
+// ── MONTHLY LEADERBOARD SNAPSHOTS ─────────────────────────────────────────────
+// Append-only rank history (rank deltas can never be reconstructed from mutable
+// current data). Idempotent: unique key + ignoreDuplicates makes reruns no-ops.
+async function snapshotLeaderboards() {
+  const month = new Date();
+  const snapshotMonth = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, '0')}-01`;
+  const { data: existing } = await supabase.from('leaderboard_snapshots')
+    .select('id').eq('snapshot_month', snapshotMonth).limit(1);
+  if (existing?.length) return; // this month already snapshotted
+
+  const rows = [];
+  for (const [entityType, view, idKey, nameKey] of [
+    ['agent', 'agent_leaderboard', 'agent_id', 'agent_name'],
+    ['office', 'office_leaderboard', 'office_id', 'office_name'],
+  ]) {
+    const { data, error } = await supabase.from(view).select('*');
+    if (error || !data) { console.error(`snapshot: ${view} read failed:`, error?.message); return; }
+    for (const metric of ['volume', 'sides']) {
+      const key = metric === 'volume' ? 'volume_1y' : 'sides_1y';
+      const ranked = data.filter(r => (r[key] || 0) > 0).sort((a, b) => (b[key] || 0) - (a[key] || 0)).slice(0, 100);
+      ranked.forEach((r, i) => rows.push({
+        snapshot_month: snapshotMonth, entity_type: entityType, entity_id: String(r[idKey]),
+        entity_name: r[nameKey], scope: 'county:all', window_key: '1y', metric,
+        rank: i + 1, closed_volume: r.volume_1y ?? null, credited_sides: r.sides_1y ?? null,
+      }));
+    }
+  }
+  for (let i = 0; i < rows.length; i += 200) {
+    const { error } = await supabase.from('leaderboard_snapshots')
+      .upsert(rows.slice(i, i + 200), { onConflict: 'snapshot_month,entity_type,entity_id,scope,window_key,metric', ignoreDuplicates: true });
+    if (error) { console.error('snapshot insert error:', error.message); return; }
+  }
+  console.log(`🏆 Leaderboard snapshot recorded for ${snapshotMonth} (${rows.length} rows)`);
+}
+
 // ── MAIN POLL FUNCTION ────────────────────────────────────────────────────────
 
 async function poll() {
@@ -647,6 +682,10 @@ async function poll() {
     // scoring must never break the poll)
     try { await computeDealScores(); }
     catch (e) { console.error('Deal score error:', e.message); }
+
+    // Monthly leaderboard rank snapshot (no-op if this month is already recorded)
+    try { await snapshotLeaderboards(); }
+    catch (e) { console.error('Snapshot error:', e.message); }
 
     if (detectedDropsForEmail.length > 0) await notifySubscribers(detectedDropsForEmail);
 

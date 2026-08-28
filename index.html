@@ -362,6 +362,10 @@
   @media(max-width:640px){.profile-lists{grid-template-columns:1fr;}}
   .boards-foot{font-family:var(--mono);font-size:9px;color:var(--text3);line-height:1.65;margin-top:16px;padding:11px 12px;background:var(--bg2);border:1px solid var(--border);}
   .boards-foot b{color:var(--text2);}
+  .verified-badge{font-family:var(--mono);font-size:9px;color:var(--green);border:1px solid rgba(52,211,153,.4);padding:2px 7px;vertical-align:middle;margin-left:6px;letter-spacing:.04em;}
+  .br-office-id{font-family:var(--mono);font-size:9px;color:var(--text3);font-weight:400;}
+  .board-row.noclick{cursor:default;}
+  .board-row.noclick:hover{background:none;}
   /* CROSS-LINKS */
   .jump-link{color:var(--cyan);cursor:pointer;font-family:var(--mono);font-size:9px;white-space:nowrap;opacity:.85;}
   .jump-link:hover{opacity:1;text-decoration:underline;}
@@ -705,6 +709,9 @@
       <select class="df-select" id="bdMetric" onchange="renderBoardRows()">
         <option value="volume">Rank by $ volume</option><option value="sides">Rank by sides</option>
       </select>
+      <select class="df-select" id="bdEntity" onchange="renderBoardRows()">
+        <option value="office">Office rankings</option><option value="brand">Brand networks</option>
+      </select>
       <span class="df-count" id="bdCount"></span>
     </div>
     <div class="boards-beta-note" id="boardsBetaNote" style="display:none">
@@ -715,10 +722,22 @@
     <div id="profileView" style="display:none"></div>
     <div class="boards-foot">
       <b>Methodology.</b> Rankings are computed solely from MLS-recorded closed transactions in Monmouth &amp; Ocean County, NJ,
-      credited to the listing and buyer agents/offices of record. Co-agented sides receive 50% credit each. Recorded closings
-      outside a $50K–$25M sanity band, or closing more than 3× above / 4× below final asking, are excluded as likely data errors.
-      Out-of-MLS ("non-member") sides are excluded. Rankings state exactly what they measure — e.g. "#1 by closed volume" — and
-      are not an endorsement or a claim of being the "best" professional. No payment affects rankings.
+      credited to the listing and buyer agents/offices of record.
+      <b>Agent credit:</b> each transaction contributes one listing side and one buyer side; an agent recorded on a side receives
+      1.0 credited side and 100% of that side's volume — unless a co-listing or co-buyer agent is recorded, in which case each
+      co-agent receives 0.5 credited side and 50% of the volume. An agent recorded on both sides of the same transaction is
+      credited both sides ("double-ended").
+      <b>Brokerage attribution:</b> the canonical brokerage ranking entity is the MLS Office ID (the branch office of record),
+      so independent brokerages are compared against equivalent operating units; same-name branches are shown with their office
+      number. "Brand networks" is a supplemental, name-based rollup and is not the canonical ranking.
+      <b>Exclusions:</b> recorded closings outside a $50K–$25M sanity band, or closing more than 3× above / 4× below final asking,
+      are excluded as likely data-entry errors; out-of-MLS ("non-member") sides are excluded because the MLS records them under a
+      placeholder identity, not a licensed member of record.
+      <b>Verification:</b> "✓ Profile verified" means MOMLS matched the claimant to the MLS identity of record; it is not an MLS
+      endorsement, award, or statement of quality.
+      <b>Terminology:</b> rankings state exactly what they measure — e.g. "#1 by closed volume" — and are never a claim of being
+      the "best" or "top-performing" professional. Rankings are provisional and may change as attribution is corrected, records
+      are normalized, additional transactions are ingested, and claims are verified. No payment affects rankings.
       <span id="boardsSrcNotice"></span>
     </div>
   </div>
@@ -1997,31 +2016,59 @@ function setBoardType(t) {
   document.getElementById('bdOffices').classList.toggle('active', t === 'office');
   document.getElementById('bdAgents').classList.toggle('active', t === 'agent');
   document.getElementById('boardsBetaNote').style.display = t === 'agent' ? 'block' : 'none';
+  document.getElementById('bdEntity').style.display = t === 'office' ? '' : 'none';
   renderBoardRows();
 }
+// Brand networks = supplemental name-based rollup of Office-ID rows. The
+// Office-ID board is the canonical ranking; this is informational only.
+function brandRollup(rows) {
+  const m = new Map();
+  for (const r of rows) {
+    const b = m.get(r.office_name) || { office_name: r.office_name, office_id: null, _offices: 0,
+      sides_1y: 0, volume_1y: 0, sides_6m: 0, volume_6m: 0, sides_1m: 0, sides_ytd: 0,
+      volume_ytd: 0, sides_mtd: 0, sides_wtd: 0, active_count: 0, active_volume: 0, pending_count: 0 };
+    b._offices++;
+    for (const k of ['sides_1y','volume_1y','sides_6m','volume_6m','sides_1m','sides_ytd','volume_ytd','sides_mtd','sides_wtd','active_count','active_volume','pending_count'])
+      b[k] += (r[k] || 0);
+    m.set(r.office_name, b);
+  }
+  return [...m.values()];
+}
 function renderBoardRows() {
-  const rows = _boardRows[_boardType];
+  let rows = _boardRows[_boardType];
   if (!rows) return;
   document.getElementById('profileView').style.display = 'none';
   const el = document.getElementById('boardsResults');
   el.style.display = 'block';
+  const isBrand = _boardType === 'office' && document.getElementById('bdEntity').value === 'brand';
+  if (isBrand) rows = brandRollup(rows);
   const w = WIN[document.getElementById('bdWindow').value] || WIN['1y'];
   const metric = document.getElementById('bdMetric').value;
   const key = metric === 'sides' ? w.sides : (w.vol || w.sides); // some windows rank by sides only
-  document.getElementById('boardsPeriod').textContent = w.label + ' · Monmouth & Ocean County, NJ';
+  document.getElementById('boardsPeriod').textContent = w.label + ' · Monmouth & Ocean County, NJ'
+    + (isBrand ? ' · supplemental brand rollup' : '');
   const ranked = rows.filter(r => (r[key] || 0) > 0)
     .sort((x, y) => (y[key] || 0) - (x[key] || 0)).slice(0, 25);
   document.getElementById('bdCount').textContent = 'Top ' + ranked.length;
+  // Canonical entity is the MLS Office ID — same-name branches get disambiguated
+  const nameCounts = {};
+  if (_boardType === 'office' && !isBrand)
+    for (const r of ranked) nameCounts[r.office_name] = (nameCounts[r.office_name] || 0) + 1;
   el.innerHTML = ranked.map((r, i) => {
     const name = _boardType === 'office' ? r.office_name : r.agent_name;
     const id = _boardType === 'office' ? r.office_id : r.agent_id;
     const vol = r[w.vol];
-    return '<div class="board-row' + (i < 3 ? ' top3' : '') + '" onclick="openProfile(\'' + _boardType + '\',\'' + String(id).replace(/'/g, "\\'") + '\',' + (i + 1) + ')">'
+    const disamb = (!isBrand && _boardType === 'office' && nameCounts[name] > 1)
+      ? ' <span class="br-office-id">· Office #' + r.office_id + '</span>' : '';
+    const clickable = !isBrand;
+    return '<div class="board-row' + (i < 3 ? ' top3' : '') + (clickable ? '' : ' noclick') + '"'
+      + (clickable ? ' onclick="openProfile(\'' + _boardType + '\',\'' + String(id).replace(/'/g, "\\'") + '\',' + (i + 1) + ')"' : '') + '>'
       + '<div class="br-rank">' + (i + 1) + '</div>'
-      + '<div><div class="br-name">' + name + '</div>'
+      + '<div><div class="br-name">' + name + disamb + '</div>'
       + '<div class="br-sub">' + (_boardType === 'agent' ? (r.office_name || '') + ' · ' : '')
+      + (isBrand ? r._offices + ' office' + (r._offices > 1 ? 's' : '') + ' · ' : '')
       + r.active_count + ' active · ' + r.pending_count + ' pending</div></div>'
-      + '<div class="br-stats"><div class="br-vol">' + (vol != null ? fmtM(vol) : (r[w.sides] || 0) + ' sides') + '</div>'
+      + '<div class="br-stats"><div class="br-vol">' + (vol != null && !(metric === 'sides' && w.vol == null) ? fmtM(vol) : (r[w.sides] || 0) + ' sides') + '</div>'
       + '<div class="br-sides">' + (r[w.sides] || 0) + ' sides' + (vol != null ? '' : ' (volume n/a this window)') + '</div></div>'
       + '</div>';
   }).join('') || '<div class="loading">No closings recorded in this window yet.</div>';
@@ -2031,7 +2078,7 @@ function renderBoardRows() {
 let _profileCtx = null;
 async function openProfile(type, id, rank) {
   const row = (_boardRows[type] || []).find(r => String(type === 'office' ? r.office_id : r.agent_id) === String(id));
-  if (!row) return;
+  if (!row) { showToast('Profile not found — showing rankings'); return; }
   const w = WIN[document.getElementById('bdWindow').value] || WIN['1y'];
   const name = type === 'office' ? row.office_name : row.agent_name;
   _profileCtx = { type, id, rank, row, w, name };
@@ -2044,7 +2091,7 @@ async function openProfile(type, id, rank) {
   el.innerHTML =
     '<button class="profile-back" onclick="closeProfile()">← Back to rankings</button>'
     + '<div class="profile-head"><div>'
-    + '<div class="profile-name">' + name + '</div>'
+    + '<div class="profile-name">' + name + ' <span id="pVerified"></span></div>'
     + (type === 'agent' ? '<div class="profile-office">' + (row.office_name || '') + '</div>' : '')
     + '<div class="profile-rank">#' + rank + ' by ' + metric + ' · ' + w.label + ' · Monmouth &amp; Ocean County</div>'
     + '</div><div class="profile-actions">'
@@ -2061,25 +2108,49 @@ async function openProfile(type, id, rank) {
     + '</div>'
     + '<div class="profile-lists">'
     + '<div class="plist"><div class="plist-h">ACTIVE LISTINGS</div><div id="pActives"><div class="plist-row">Loading…</div></div></div>'
-    + '<div class="plist"><div class="plist-h">RECENT SALES (MLS-RECORDED)</div><div id="pSales"><div class="plist-row">Loading…</div></div></div>'
+    + '<div class="plist"><div class="plist-h">RECENT ACTIVITY · TRAILING 90 DAYS</div><div id="pActivity"><div class="plist-row">Loading…</div></div></div>'
     + '</div>'
     + '<div class="br-sub" style="margin-top:12px">' + srcNotice() + '</div>';
-  // live listings for the profile
+  // Verified badge — means MOMLS matched the claimant to the MLS identity;
+  // it is NOT an MLS endorsement (verified_profiles exposes only type+id)
+  try {
+    const { data: v } = await sb.from('verified_profiles').select('subject_id')
+      .eq('subject_type', type).eq('subject_id', String(id)).maybeSingle();
+    if (v) document.getElementById('pVerified').innerHTML = '<span class="verified-badge">✓ Profile verified</span>';
+  } catch (e) { /* badge is a bonus */ }
+  // Actives (public IDX display) + AGGREGATED closed activity — individual
+  // closed-transaction records are deliberately not listed on public profiles.
   try {
     const filt = type === 'agent'
       ? 'agent_id.eq.' + id : 'list_office_id.eq."' + id + '",office_name.eq."' + name + '"';
     const buyFilt = type === 'agent'
       ? 'buyer_agent_id.eq.' + id : 'buyer_office_id.eq."' + id + '",buyer_office_name.eq."' + name + '"';
-    const [act, sold] = await Promise.all([
+    const since90 = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
+    const [act, listSide, buySide] = await Promise.all([
       sb.from('listings').select('address,city,current_price').or(filt).eq('status', 'Active').order('current_price', { ascending: false }).limit(6),
-      sb.from('listings').select('address,city,close_price,close_date').or(filt + ',' + buyFilt).eq('status', 'Closed').gt('close_price', 0).order('close_date', { ascending: false }).limit(6),
+      sb.from('listings').select('city,close_price').or(filt).eq('status', 'Closed').gt('close_price', 0).gte('close_date', since90).limit(500),
+      sb.from('listings').select('city,close_price').or(buyFilt).eq('status', 'Closed').gt('close_price', 0).gte('close_date', since90).limit(500),
     ]);
-    const rowsHtml = (rows, priceKey, dateKey) => (rows || []).map(r =>
-      '<div class="plist-row"><span>' + r.address + '</span><span><b>' + fmtPrice(r[priceKey]) + '</b>'
-      + (dateKey && r[dateKey] ? ' · ' + new Date(r[dateKey] + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '') + '</span></div>'
+    document.getElementById('pActives').innerHTML = (act.data || []).map(r =>
+      '<div class="plist-row"><span>' + r.address + '</span><span><b>' + fmtPrice(r.current_price) + '</b></span></div>'
     ).join('') || '<div class="plist-row">None on record</div>';
-    document.getElementById('pActives').innerHTML = rowsHtml(act.data, 'current_price');
-    document.getElementById('pSales').innerHTML = rowsHtml(sold.data, 'close_price', 'close_date');
+    const ls = listSide.data || [], bs = buySide.data || [];
+    const all90 = ls.concat(bs);
+    if (!all90.length) {
+      document.getElementById('pActivity').innerHTML = '<div class="plist-row">No recorded closings in the last 90 days</div>';
+    } else {
+      const vol = all90.reduce((s, r) => s + r.close_price, 0);
+      const towns = {};
+      for (const r of all90) if (r.city) towns[r.city] = (towns[r.city] || 0) + 1;
+      const topTowns = Object.entries(towns).sort((a, b) => b[1] - a[1]).slice(0, 3).map(t => t[0]).join(', ');
+      const arow = (k, v) => '<div class="plist-row"><span>' + k + '</span><span><b>' + v + '</b></span></div>';
+      document.getElementById('pActivity').innerHTML =
+          arow('Closed sides', all90.length)
+        + arow('Closed volume', fmtM(vol))
+        + arow('Listing-side share', Math.round(100 * ls.length / all90.length) + '%')
+        + (topTowns ? arow('Most active in', topTowns) : '')
+        + arow('Median sale', fmtM(all90.map(r => r.close_price).sort((a, b) => a - b)[Math.floor(all90.length / 2)]));
+    }
   } catch (e) { /* profile lists are a bonus */ }
 }
 function closeProfile() {
@@ -2118,6 +2189,19 @@ function downloadCard() {
   x.fillText((vol ? vol + '  ·  ' : '') + (p.row[w.sides] || 0) + ' sides', 540, 710);
   x.fillStyle = '#7a90b0'; x.font = '28px monospace';
   x.fillText(w.label + ' · closed transactions of record', 540, 765);
+  // Milestone badges — only thresholds the 12-month data actually supports
+  const miles = [];
+  const v1y = p.row.volume_1y || 0, s1y = p.row.sides_1y || 0;
+  if (p.rank <= 10) miles.push('TOP 10');
+  if (v1y >= 100e6) miles.push('$100M+ CLOSED (12MO)');
+  else if (v1y >= 50e6) miles.push('$50M+ CLOSED (12MO)');
+  else if (v1y >= 25e6) miles.push('$25M+ CLOSED (12MO)');
+  if (s1y >= 100) miles.push('100+ SIDES (12MO)');
+  else if (s1y >= 50) miles.push('50+ SIDES (12MO)');
+  if (miles.length) {
+    x.fillStyle = '#d4af37'; x.font = '600 24px monospace';
+    x.fillText(miles.join('  ·  '), 540, 820);
+  }
   x.fillStyle = '#3d5470'; x.font = '20px monospace';
   x.fillText('momls.netlify.app/?lb=' + (p.type === 'office' ? 'o' : 'a') + ':' + p.id, 540, 900);
   const notice = srcNotice();
@@ -2509,6 +2593,7 @@ async function init() {
       const ranked = _boardRows[type].filter(r => (r[key] || 0) > 0).sort((a, b) => (b[key] || 0) - (a[key] || 0));
       const idx = ranked.findIndex(r => String(type === 'office' ? r.office_id : r.agent_id) === String(id));
       if (idx >= 0) openProfile(type, id, idx + 1);
+      else { showToast('Profile not found — showing current rankings'); history.replaceState({}, '', window.location.pathname); }
     });
   }
 }
