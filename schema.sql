@@ -457,6 +457,7 @@ WITH sides AS (
     AND close_price BETWEEN 50000 AND 25000000
     AND (current_price <= 0 OR close_price BETWEEN current_price * 0.25 AND current_price * 3)
     AND county IN ('Monmouth', 'Ocean')
+    AND COALESCE(agent_name, '') !~* 'non.?member' AND COALESCE(office_name, '') !~* 'non.?member'
   UNION ALL
   SELECT buyer_agent_id, buyer_agent_name, buyer_office_name,
          'buy', close_price, close_date,
@@ -466,6 +467,8 @@ WITH sides AS (
     AND close_price BETWEEN 50000 AND 25000000
     AND (current_price <= 0 OR close_price BETWEEN current_price * 0.25 AND current_price * 3)
     AND county IN ('Monmouth', 'Ocean')
+    -- the feed books out-of-MLS buyer agents as "NON MEMBER MORR" — a sentinel, not an agent
+    AND COALESCE(buyer_agent_name, '') !~* 'non.?member' AND COALESCE(buyer_office_name, '') !~* 'non.?member'
 ),
 inv AS (
   SELECT agent_id AS aid,
@@ -511,6 +514,7 @@ WITH sides AS (
     AND close_price BETWEEN 50000 AND 25000000
     AND (current_price <= 0 OR close_price BETWEEN current_price * 0.25 AND current_price * 3)
     AND county IN ('Monmouth', 'Ocean')
+    AND office_name !~* 'non.?member'
   UNION ALL
   SELECT COALESCE(buyer_office_id, buyer_office_name), buyer_office_name,
          close_price, close_date
@@ -519,6 +523,7 @@ WITH sides AS (
     AND close_price BETWEEN 50000 AND 25000000
     AND (current_price <= 0 OR close_price BETWEEN current_price * 0.25 AND current_price * 3)
     AND county IN ('Monmouth', 'Ocean')
+    AND buyer_office_name !~* 'non.?member'
 ),
 inv AS (
   SELECT COALESCE(list_office_id, office_name) AS oid,
