@@ -59,6 +59,11 @@ const CLOSED_FIELDS = [
   'StandardFields.YearBuilt', 'StandardFields.ListPrice', 'StandardFields.ClosePrice',
   'StandardFields.CloseDate', 'StandardFields.PurchaseContractDate',
   'StandardFields.ListingContractDate', 'StandardFields.Latitude', 'StandardFields.Longitude',
+  // Attribution (leaderboards): both sides, stable MLS ids
+  'StandardFields.ListAgentMlsId', 'StandardFields.ListAgentFirstName', 'StandardFields.ListAgentLastName',
+  'StandardFields.ListOfficeName', 'StandardFields.ListOfficeMlsId', 'StandardFields.CoListAgentMlsId',
+  'StandardFields.BuyerAgentMlsId', 'StandardFields.BuyerAgentFirstName', 'StandardFields.BuyerAgentLastName',
+  'StandardFields.BuyerOfficeName', 'StandardFields.BuyerOfficeMlsId', 'StandardFields.CoBuyerAgentMlsId',
 ].join(',');
 
 async function sparkFetch(params) {
@@ -143,6 +148,16 @@ function normalizeClosed(raw) {
     status:         'Closed',
     latitude:       sDec(sf.Latitude),
     longitude:      sDec(sf.Longitude),
+    agent_name:     [clean(sf.ListAgentFirstName), clean(sf.ListAgentLastName)].filter(Boolean).join(' ') || null,
+    agent_id:       clean(sf.ListAgentMlsId),
+    office_name:    clean(sf.ListOfficeName),
+    list_office_id: clean(sf.ListOfficeMlsId),
+    co_list_agent_id:  clean(sf.CoListAgentMlsId),
+    buyer_agent_id:    clean(sf.BuyerAgentMlsId),
+    buyer_agent_name:  [clean(sf.BuyerAgentFirstName), clean(sf.BuyerAgentLastName)].filter(Boolean).join(' ') || null,
+    buyer_office_name: clean(sf.BuyerOfficeName),
+    buyer_office_id:   clean(sf.BuyerOfficeMlsId),
+    co_buyer_agent_id: clean(sf.CoBuyerAgentMlsId),
     last_seen_at:   new Date().toISOString(),
     updated_at:     new Date().toISOString(),
   };

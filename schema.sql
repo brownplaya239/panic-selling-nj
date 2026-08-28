@@ -430,6 +430,127 @@ WHERE t.cut_n >= 10 AND (t.cut_n + t.base_n) >= 30;
 GRANT SELECT ON cut_edge TO anon, authenticated;
 
 -- ============================================================
+-- LEADERBOARDS: agent + brokerage attribution & rankings
+-- ============================================================
+
+-- Attribution columns: both transaction sides, stable MLS ids.
+-- NOTE: agent email/phone exist in the feed but are deliberately NOT stored.
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS list_office_id    TEXT;
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS co_list_agent_id  TEXT;
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS buyer_agent_id    TEXT;
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS buyer_agent_name  TEXT;
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS buyer_office_name TEXT;
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS buyer_office_id   TEXT;
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS co_buyer_agent_id TEXT;
+
+-- VIEW: agent_leaderboard — per-agent windowed production, both sides.
+-- Guards: close sanity band ($50k–$25M; a $380M typo topped the first demo)
+-- and close-vs-list ratio when list price is known. Co-agented sides earn
+-- 0.5 credit each. Windows: WTD/MTD/YTD/30d/180d/365d.
+CREATE OR REPLACE VIEW agent_leaderboard AS
+WITH sides AS (
+  SELECT agent_id AS aid, agent_name AS aname, office_name AS oname,
+         'list' AS side, close_price, close_date,
+         CASE WHEN co_list_agent_id IS NOT NULL THEN 0.5 ELSE 1.0 END AS credit
+  FROM listings
+  WHERE status = 'Closed' AND agent_id IS NOT NULL
+    AND close_price BETWEEN 50000 AND 25000000
+    AND (current_price <= 0 OR close_price BETWEEN current_price * 0.25 AND current_price * 3)
+    AND county IN ('Monmouth', 'Ocean')
+  UNION ALL
+  SELECT buyer_agent_id, buyer_agent_name, buyer_office_name,
+         'buy', close_price, close_date,
+         CASE WHEN co_buyer_agent_id IS NOT NULL THEN 0.5 ELSE 1.0 END
+  FROM listings
+  WHERE status = 'Closed' AND buyer_agent_id IS NOT NULL
+    AND close_price BETWEEN 50000 AND 25000000
+    AND (current_price <= 0 OR close_price BETWEEN current_price * 0.25 AND current_price * 3)
+    AND county IN ('Monmouth', 'Ocean')
+),
+inv AS (
+  SELECT agent_id AS aid,
+         COUNT(*) FILTER (WHERE status = 'Active')::INT  AS active_count,
+         COALESCE(SUM(current_price) FILTER (WHERE status = 'Active'), 0)::BIGINT AS active_volume,
+         COUNT(*) FILTER (WHERE status = 'Pending')::INT AS pending_count
+  FROM listings
+  WHERE agent_id IS NOT NULL AND status IN ('Active', 'Pending')
+  GROUP BY agent_id
+)
+SELECT
+  s.aid AS agent_id,
+  MAX(s.aname)  AS agent_name,
+  MAX(s.oname)  AS office_name,   -- most recent brokerage wins ties poorly; v1
+  ROUND(SUM(s.credit) FILTER (WHERE s.close_date >= CURRENT_DATE - 365), 1)                 AS sides_1y,
+  COALESCE(SUM(s.close_price * s.credit) FILTER (WHERE s.close_date >= CURRENT_DATE - 365), 0)::BIGINT AS volume_1y,
+  ROUND(SUM(s.credit) FILTER (WHERE s.side = 'list' AND s.close_date >= CURRENT_DATE - 365), 1) AS list_sides_1y,
+  ROUND(SUM(s.credit) FILTER (WHERE s.side = 'buy'  AND s.close_date >= CURRENT_DATE - 365), 1) AS buy_sides_1y,
+  ROUND(SUM(s.credit) FILTER (WHERE s.close_date >= CURRENT_DATE - 180), 1)                 AS sides_6m,
+  COALESCE(SUM(s.close_price * s.credit) FILTER (WHERE s.close_date >= CURRENT_DATE - 180), 0)::BIGINT AS volume_6m,
+  ROUND(SUM(s.credit) FILTER (WHERE s.close_date >= CURRENT_DATE - 30), 1)                  AS sides_1m,
+  COALESCE(SUM(s.close_price * s.credit) FILTER (WHERE s.close_date >= CURRENT_DATE - 30), 0)::BIGINT  AS volume_1m,
+  ROUND(SUM(s.credit) FILTER (WHERE s.close_date >= date_trunc('year',  CURRENT_DATE)), 1)  AS sides_ytd,
+  COALESCE(SUM(s.close_price * s.credit) FILTER (WHERE s.close_date >= date_trunc('year',  CURRENT_DATE)), 0)::BIGINT AS volume_ytd,
+  ROUND(SUM(s.credit) FILTER (WHERE s.close_date >= date_trunc('month', CURRENT_DATE)), 1)  AS sides_mtd,
+  ROUND(SUM(s.credit) FILTER (WHERE s.close_date >= date_trunc('week',  CURRENT_DATE)), 1)  AS sides_wtd,
+  COALESCE(MAX(i.active_count), 0)  AS active_count,
+  COALESCE(MAX(i.active_volume), 0) AS active_volume,
+  COALESCE(MAX(i.pending_count), 0) AS pending_count
+FROM sides s
+LEFT JOIN inv i ON i.aid = s.aid
+GROUP BY s.aid;
+
+GRANT SELECT ON agent_leaderboard TO anon, authenticated;
+
+-- VIEW: office_leaderboard — brokerage rollup, both sides, same guards/windows
+CREATE OR REPLACE VIEW office_leaderboard AS
+WITH sides AS (
+  SELECT COALESCE(list_office_id, office_name) AS oid, office_name AS oname,
+         close_price, close_date
+  FROM listings
+  WHERE status = 'Closed' AND office_name IS NOT NULL
+    AND close_price BETWEEN 50000 AND 25000000
+    AND (current_price <= 0 OR close_price BETWEEN current_price * 0.25 AND current_price * 3)
+    AND county IN ('Monmouth', 'Ocean')
+  UNION ALL
+  SELECT COALESCE(buyer_office_id, buyer_office_name), buyer_office_name,
+         close_price, close_date
+  FROM listings
+  WHERE status = 'Closed' AND buyer_office_name IS NOT NULL
+    AND close_price BETWEEN 50000 AND 25000000
+    AND (current_price <= 0 OR close_price BETWEEN current_price * 0.25 AND current_price * 3)
+    AND county IN ('Monmouth', 'Ocean')
+),
+inv AS (
+  SELECT COALESCE(list_office_id, office_name) AS oid,
+         COUNT(*) FILTER (WHERE status = 'Active')::INT  AS active_count,
+         COALESCE(SUM(current_price) FILTER (WHERE status = 'Active'), 0)::BIGINT AS active_volume,
+         COUNT(*) FILTER (WHERE status = 'Pending')::INT AS pending_count
+  FROM listings
+  WHERE office_name IS NOT NULL AND status IN ('Active', 'Pending')
+  GROUP BY COALESCE(list_office_id, office_name)
+)
+SELECT
+  s.oid AS office_id,
+  MAX(s.oname) AS office_name,
+  COUNT(*) FILTER (WHERE s.close_date >= CURRENT_DATE - 365)                    AS sides_1y,
+  COALESCE(SUM(s.close_price) FILTER (WHERE s.close_date >= CURRENT_DATE - 365), 0)::BIGINT AS volume_1y,
+  COUNT(*) FILTER (WHERE s.close_date >= CURRENT_DATE - 180)                    AS sides_6m,
+  COALESCE(SUM(s.close_price) FILTER (WHERE s.close_date >= CURRENT_DATE - 180), 0)::BIGINT AS volume_6m,
+  COUNT(*) FILTER (WHERE s.close_date >= CURRENT_DATE - 30)                     AS sides_1m,
+  COUNT(*) FILTER (WHERE s.close_date >= date_trunc('year',  CURRENT_DATE))     AS sides_ytd,
+  COALESCE(SUM(s.close_price) FILTER (WHERE s.close_date >= date_trunc('year', CURRENT_DATE)), 0)::BIGINT AS volume_ytd,
+  COUNT(*) FILTER (WHERE s.close_date >= date_trunc('month', CURRENT_DATE))     AS sides_mtd,
+  COUNT(*) FILTER (WHERE s.close_date >= date_trunc('week',  CURRENT_DATE))     AS sides_wtd,
+  COALESCE(MAX(i.active_count), 0)  AS active_count,
+  COALESCE(MAX(i.active_volume), 0) AS active_volume,
+  COALESCE(MAX(i.pending_count), 0) AS pending_count
+FROM sides s
+LEFT JOIN inv i ON i.oid = s.oid
+GROUP BY s.oid;
+
+GRANT SELECT ON office_leaderboard TO anon, authenticated;
+
+-- ============================================================
 -- DEAL SCREENER: capitulation scores + graded bid guidance
 -- ============================================================
 

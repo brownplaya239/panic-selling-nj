@@ -96,7 +96,12 @@ async function sparkFetch(endpoint, params = {}) {
       'StandardFields.MlsStatus', 'StandardFields.Latitude',
       'StandardFields.Longitude', 'StandardFields.PublicRemarks',
       'StandardFields.ListAgentFullName', 'StandardFields.ListAgentMlsId',
-      'StandardFields.ListOfficeName',
+      'StandardFields.ListAgentFirstName', 'StandardFields.ListAgentLastName',
+      'StandardFields.ListOfficeName', 'StandardFields.ListOfficeMlsId',
+      'StandardFields.BuyerAgentMlsId', 'StandardFields.BuyerAgentFirstName',
+      'StandardFields.BuyerAgentLastName', 'StandardFields.BuyerOfficeName',
+      'StandardFields.BuyerOfficeMlsId', 'StandardFields.CoListAgentMlsId',
+      'StandardFields.CoBuyerAgentMlsId',
       'Photos',
     ].join(','),
     ...params,
@@ -183,6 +188,12 @@ async function fetchAllActiveListings() {
 
 function safeInt(v) { if(!v || String(v).includes('*')) return null; const n=parseInt(v); return isNaN(n)?null:n; }
 function safeDec(v) { if(!v || String(v).includes('*')) return null; const n=parseFloat(v); return isNaN(n)?null:n; }
+function clean_(v) { return (typeof v === 'string' && v && !v.includes('*')) ? v : null; }
+function joinName(full, first, last) {
+  if (clean_(full)) return full;
+  const parts = [clean_(first), clean_(last)].filter(Boolean);
+  return parts.length ? parts.join(' ') : null;
+}
 // This feed tier doesn't provide DaysOnMarket/CumulativeDaysOnMarket — derive it
 // from OnMarketDate (falling back to ListingContractDate), both 100% populated.
 function computeDom(sf) {
@@ -236,9 +247,17 @@ function normalizeListing(raw) {
     photo_url:     photos[0]?.Uri800 || photos[0]?.UriThumb || null,
     listing_url:   (raw.ListingId && !String(raw.ListingId).includes('*'))
                      ? `https://www.flexmls.com/share/listing/${raw.ListingId}` : null,
-    agent_name:    sf.ListAgentFullName || null,
-    agent_id:      sf.ListAgentMlsId || null,
-    office_name:   sf.ListOfficeName || null,
+    // ListAgentFullName is EMPTY in this feed — build from First+Last
+    agent_name:    joinName(sf.ListAgentFullName, sf.ListAgentFirstName, sf.ListAgentLastName),
+    agent_id:      clean_(sf.ListAgentMlsId),
+    office_name:   clean_(sf.ListOfficeName),
+    list_office_id:   clean_(sf.ListOfficeMlsId),
+    co_list_agent_id: clean_(sf.CoListAgentMlsId),
+    buyer_agent_id:   clean_(sf.BuyerAgentMlsId),
+    buyer_agent_name: joinName(null, sf.BuyerAgentFirstName, sf.BuyerAgentLastName),
+    buyer_office_name: clean_(sf.BuyerOfficeName),
+    buyer_office_id:   clean_(sf.BuyerOfficeMlsId),
+    co_buyer_agent_id: clean_(sf.CoBuyerAgentMlsId),
     description:   sf.PublicRemarks || null,
     tags:          buildTags(sf),
     last_seen_at:  new Date().toISOString(),
