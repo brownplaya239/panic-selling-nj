@@ -931,4 +931,4 @@ if (isMain) {
   }
 }
 
-export { buildAlertEmail, heatBadge, cutEdgeLine, fetchTownHeat, fetchCutEdge, matchesSub, normalizeListing, computeDealScores };
+export { buildAlertEmail, heatBadge, cutEdgeLine, fetchTownHeat, fetchCutEdge, matchesSub, normalizeListing, computeDealScores, snapshotLeaderboards };
