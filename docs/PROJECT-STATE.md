@@ -4,7 +4,7 @@
 
 ## What this system is
 
-MOMLS (momls.netlify.app) is a Monmouth & Ocean County real-estate intelligence site built on a MORMLS/Spark IDX feed:
+MOMLS (njreindex.com, formerly momls.netlify.app) is a Monmouth & Ocean County real-estate intelligence site built on a MORMLS/Spark IDX feed:
 
 - **Pipeline**: `poller.js` (6 AM / 8 PM ET) ingests actives + recent pending/closed via price-bucketed fetch (Spark's cursor pagination is unreliable — see docs/DATA-DICTIONARY.md for every feed quirk), detects price cuts, records status transitions, refreshes materialized frontend views, rescores deals, sends alert emails (Resend), snapshots leaderboards monthly.
 - **Surfaces** (all in `index.html`): Price Drops · All Active · Sold Comps (Netlify function `/api/comps`) · Best Towns · Deal Screener · Recent Sales tape · Market Leaderboards — cross-linked with context-carrying jumps and deep links (`?lb=a:ID`).
