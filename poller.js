@@ -829,7 +829,7 @@ function buildAlertEmail(drops, sub, isWeekly = false, heat = new Map(), cutEdge
   </div>
   <div style="font-size:9px;color:#3d5470;border-top:1px solid #1e2d45;padding-top:14px;line-height:1.6">
     You're receiving this because you set up price drop alerts for <strong style="color:#7a90b0">${watchArea}</strong>.<br>
-    <a href="${unsubUrl}" style="color:#7a90b0">Unsubscribe</a> &nbsp;·&nbsp; <a href="${SITE_URL}" style="color:#7a90b0;text-decoration:none">momls.netlify.app</a>
+    <a href="${unsubUrl}" style="color:#7a90b0">Unsubscribe</a> &nbsp;·&nbsp; <a href="${SITE_URL}" style="color:#7a90b0;text-decoration:none">${SITE_URL.replace(/^https?:\/\//, '')}</a>
   </div>
 </div></body></html>`;
 }

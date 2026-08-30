@@ -2203,7 +2203,7 @@ function downloadCard() {
     x.fillText(miles.join('  ·  '), 540, 820);
   }
   x.fillStyle = '#3d5470'; x.font = '20px monospace';
-  x.fillText('momls.netlify.app/?lb=' + (p.type === 'office' ? 'o' : 'a') + ':' + p.id, 540, 900);
+  x.fillText(location.host + '/?lb=' + (p.type === 'office' ? 'o' : 'a') + ':' + p.id, 540, 900);
   const notice = srcNotice();
   x.font = '15px monospace';
   x.fillText(notice.slice(0, 78), 540, 950);
