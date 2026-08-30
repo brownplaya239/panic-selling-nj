@@ -1,102 +1,104 @@
-=== BETA OUTREACH SHORTLIST (25) — hook · profile link ===
+=== BETA OUTREACH SHORTLIST (25) — 2026-08-30 — njreindex.com ===
 
  1. Isaac Nussbaum — Real Broker, LLC- Toms River
-    HOOK: #1 in Toms River by closed volume ($40.9M, 41 sides, 12mo)  (+2 more: $50M+ closed volume (12mo) | 50+ credited sides (12mo: 60.5))
-    LINK: https://momls.netlify.app/?lb=a:40631
+    HOOK: #1 in Toms River by closed volume ($39.6M, 39 sides, 12mo)  (+more: $50M+ closed volume (12mo) | 50+ credited sides (12mo: 57.5))
+    LINK: https://njreindex.com/?lb=a:40631
 
  2. Jamie Paradise — RE/MAX Bay Point Realtors
-    HOOK: #1 in Point Pleasant by closed volume ($25.1M, 19 sides, 12mo)
-    LINK: https://momls.netlify.app/?lb=a:19368
+    HOOK: #1 in Point Pleasant by closed volume ($24.2M, 18 sides, 12mo)
+    LINK: https://njreindex.com/?lb=a:19368
 
- 3. June Branagan — Landarama Inc.
-    HOOK: #1 in Manalapan by closed volume ($23.9M, 29 sides, 12mo)
-    LINK: https://momls.netlify.app/?lb=a:39306
-
- 4. Blima Goldberger — Waxman Realty
+ 3. Blima Goldberger — Waxman Realty
     HOOK: #1 in Lakewood by closed volume ($23.1M, 23 sides, 12mo)
-    LINK: https://momls.netlify.app/?lb=a:18442
+    LINK: https://njreindex.com/?lb=a:18442
+
+ 4. June Branagan — Landarama Inc.
+    HOOK: #1 in Manalapan by closed volume ($23.1M, 28 sides, 12mo)
+    LINK: https://njreindex.com/?lb=a:39306
 
  5. Tzvi Holtz — Four Points Realty
     HOOK: #1 in Jackson by closed volume ($22.6M, 27 sides, 12mo)
-    LINK: https://momls.netlify.app/?lb=a:33966
+    LINK: https://njreindex.com/?lb=a:33966
 
  6. Edwin Oels — O'Brien Realty, LLC
     HOOK: #1 in Red Bank by closed volume ($21.7M, 14 sides, 12mo)
-    LINK: https://momls.netlify.app/?lb=a:35339
+    LINK: https://njreindex.com/?lb=a:35339
 
  7. Emilie Knight — Toll Brothers Real Estate
-    HOOK: #1 in Asbury Park by closed volume ($20.1M, 13 sides, 12mo)
-    LINK: https://momls.netlify.app/?lb=a:62622
+    HOOK: #1 in Asbury Park by closed volume ($21.7M, 14 sides, 12mo)
+    LINK: https://njreindex.com/?lb=a:62622
 
  8. David Lazaro — Keller Williams Shore Properties
-    HOOK: #1 in Manahawkin by closed volume ($19.7M, 22 sides, 12mo)  (+4 more: #1 in Barnegat by closed volume ($12.0M, 20 sides, 12mo) | #6 agent countywide by closed volume ($84.8M))
-    LINK: https://momls.netlify.app/?lb=a:46403
+    HOOK: #1 in Manahawkin by closed volume ($19.7M, 22 sides, 12mo)  (+more: #1 in Barnegat by closed volume ($11.7M, 19 sides, 12mo) | #5 agent countywide by closed volume ($84.5M))
+    LINK: https://njreindex.com/?lb=a:46403
 
  9. Jessica DiFrancia — Keller Williams Atlantic Shore
-    HOOK: #1 in Little Egg Harbor by closed volume ($17.5M, 36 sides, 12mo)  (+1 more: 50+ credited sides (12mo: 50))
-    LINK: https://momls.netlify.app/?lb=a:41916
+    HOOK: #1 in Little Egg Harbor by closed volume ($17.5M, 36 sides, 12mo)  (+more: 50+ credited sides (12mo: 50))
+    LINK: https://njreindex.com/?lb=a:41916
 
 10. Aleksandr Pritsker — EXP Realty
-    HOOK: #1 in Marlboro by closed volume ($17.4M, 11.5 sides, 12mo)  (+3 more: #1 agent countywide by closed volume ($122.9M) | $50M+ closed volume (12mo))
-    LINK: https://momls.netlify.app/?lb=a:36568
+    HOOK: #1 in Marlboro by closed volume ($17.4M, 11.5 sides, 12mo)  (+more: #1 agent countywide by closed volume ($122.3M) | $50M+ closed volume (12mo))
+    LINK: https://njreindex.com/?lb=a:36568
 
 11. Kyle Golden — C21 Thomson & Co.
     HOOK: #1 in Long Branch by closed volume ($16.0M, 10 sides, 12mo)
-    LINK: https://momls.netlify.app/?lb=a:40611
+    LINK: https://njreindex.com/?lb=a:40611
 
 12. Gregory Rice — Coldwell Banker Realty
     HOOK: #1 in Manasquan by closed volume ($14.9M, 7 sides, 12mo)
-    LINK: https://momls.netlify.app/?lb=a:26443
+    LINK: https://njreindex.com/?lb=a:26443
 
 13. Melissa Steinert — Toll Brothers Real Estate
     HOOK: #1 in Middletown by closed volume ($14.7M, 15 sides, 12mo)
-    LINK: https://momls.netlify.app/?lb=a:49592
+    LINK: https://njreindex.com/?lb=a:49592
 
 14. Rochel Stareshefsky — Shemtov Realty LLC
     HOOK: #1 in Howell by closed volume ($14.2M, 19.5 sides, 12mo)
-    LINK: https://momls.netlify.app/?lb=a:54075
+    LINK: https://njreindex.com/?lb=a:54075
 
 15. Michael Sclafani — RE/MAX Central
-    HOOK: #1 in Freehold by closed volume ($14.0M, 17.5 sides, 12mo)  (+2 more: $50M+ closed volume (12mo) | 50+ credited sides (12mo: 80))
-    LINK: https://momls.netlify.app/?lb=a:32545
+    HOOK: #1 in Freehold by closed volume ($14.0M, 17.5 sides, 12mo)  (+more: $50M+ closed volume (12mo) | 50+ credited sides (12mo: 77))
+    LINK: https://njreindex.com/?lb=a:32545
 
 16. John DeFelice — DeFelice Realty Group, LLC
     HOOK: #1 in Brick by closed volume ($12.9M, 8 sides, 12mo)
-    LINK: https://momls.netlify.app/?lb=a:43771
+    LINK: https://njreindex.com/?lb=a:43771
 
 17. Casey Quinn — RE/MAX at Barnegat Bay
     HOOK: #1 in Forked River by closed volume ($11.4M, 16 sides, 12mo)
-    LINK: https://momls.netlify.app/?lb=a:41727
+    LINK: https://njreindex.com/?lb=a:41727
 
 18. Moshe Rumpler — Imperial Real Estate Agency
-    HOOK: #2 in Toms River by closed volume ($16.4M, 31 sides, 12mo)  (+1 more: 50+ credited sides (12mo: 56))
-    LINK: https://momls.netlify.app/?lb=a:46454
+    HOOK: #2 in Toms River by closed volume ($16.9M, 32 sides, 12mo)  (+more: 50+ credited sides (12mo: 57))
+    LINK: https://njreindex.com/?lb=a:46454
 
 19. James Ward — Keller Williams Realty Ocean Living
     HOOK: #2 in Point Pleasant by closed volume ($12.0M, 10 sides, 12mo)
-    LINK: https://momls.netlify.app/?lb=a:16500
+    LINK: https://njreindex.com/?lb=a:16500
 
-20. Debra Glatz — Lennar Sales Corp.
-    HOOK: #2 in Manalapan by closed volume ($19.8M, 28.5 sides, 12mo)  (+1 more: #2 in Marlboro by closed volume ($9.4M, 10.5 sides, 12mo))
-    LINK: https://momls.netlify.app/?lb=a:40447
+20. Esther Goodman — Good Choice Realty
+    HOOK: #2 in Lakewood by closed volume ($15.3M, 28.5 sides, 12mo)  (+more: 50+ credited sides (12mo: 64))
+    LINK: https://njreindex.com/?lb=a:33624
 
-21. Esther Goodman — Good Choice Realty
-    HOOK: #2 in Lakewood by closed volume ($15.3M, 28.5 sides, 12mo)  (+1 more: 50+ credited sides (12mo: 65))
-    LINK: https://momls.netlify.app/?lb=a:33624
+21. Debra Glatz — Lennar Sales Corp.
+    HOOK: #2 in Manalapan by closed volume ($19.8M, 28.5 sides, 12mo)  (+more: #2 in Marlboro by closed volume ($9.4M, 10.5 sides, 12mo))
+    LINK: https://njreindex.com/?lb=a:40447
 
 22. Brian Teitel — Berkshire Hathaway HomeServices Fox & Roach - Manalapan
-    HOOK: #2 in Jackson by closed volume ($15.5M, 29 sides, 12mo)
-    LINK: https://momls.netlify.app/?lb=a:8148
+    HOOK: #2 in Jackson by closed volume ($16.5M, 31 sides, 12mo)
+    LINK: https://njreindex.com/?lb=a:8148
 
 23. Kelly Zaccaro — Heritage House Sotheby's International Realty
-    HOOK: #2 in Red Bank by closed volume ($12.6M, 7 sides, 12mo)  (+1 more: $50M+ closed volume (12mo))
-    LINK: https://momls.netlify.app/?lb=a:12960
+    HOOK: #2 in Red Bank by closed volume ($12.6M, 7 sides, 12mo)  (+more: $50M+ closed volume (12mo))
+    LINK: https://njreindex.com/?lb=a:12960
 
 24. Kenneth Rickel — Space & Company
     HOOK: #2 in Asbury Park by closed volume ($18.8M, 13.5 sides, 12mo)
-    LINK: https://momls.netlify.app/?lb=a:30706
+    LINK: https://njreindex.com/?lb=a:30706
 
 25. Patricia Romano — RE/MAX of Long Beach Island
     HOOK: #2 in Manahawkin by closed volume ($9.9M, 15 sides, 12mo)
-    LINK: https://momls.netlify.app/?lb=a:27714
+    LINK: https://njreindex.com/?lb=a:27714
 
+Notes: hooks are exact quantitative claims from the live leaderboard views (12mo windows).
+Outreach tone: editorial recognition, not sales. Each link lands on their profile with a Claim button.
