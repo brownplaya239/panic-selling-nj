@@ -24,10 +24,17 @@
   - [ ] Credit Card Authorization for fees (amounts not published — ask when filing)
 - Feed tech: RETS/API per their vendor docs (forms.gsmls.com/Applications/rets_vnda.pdf)
 
-## 3. Bright MLS — South Jersey (self-serve start)
-- [ ] Register at developer.brightmls.com (developer portal)
-- [ ] Content-licensing contract + fees (direct with Bright; OAuth credentials issued after approval)
-- Note: Bright is the most formal and most likely to charge meaningful fees; RESO Web API, cleanest tech of the group.
+## 3. Bright MLS — South Jersey (contract required — NOT free)
+- Per Bright's FAQ (verified 2026-09): "direct access to the data requires a contract with Bright. Fees apply." Only door: Bright Content Licensing (start with outreach email #3).
+- [ ] Send content-licensing inquiry (docs/outreach-emails-mls.md #3)
+- [ ] Contract + fee schedule → then OAuth credentials
+- **Adapter notes for when credentials arrive** (from their FAQ):
+  - `PropertySubType` largely DEPRECATED (Condominium/Farm/Mobile Home etc. removed) — real type lives in `StructureDesignType`, `OwnershipInterest`, `ArchitecturalStyle`. Our MORMLS property_type mapping will NOT transfer as-is.
+  - Use `ListingKey` (stable) as primary id, NOT ListingId (changes if the county on a listing is corrected).
+  - Agents/offices live in `BrightMembers` / `BrightOffices` resources (leaderboard attribution path).
+  - Photos: up to 150/listing, URL storage allowed, order via `$orderby=MediaDisplayOrder asc`.
+  - Refresh: NAR policy minimum every 12h — our 2×-daily cadence is exactly compliant.
+  - No IP restrictions; concurrent connections permitted; page via max-page-size header.
 
 ## 4. NJMLS — North Jersey (Bergen/Essex/Passaic)
 - [ ] Requires participant membership in NJMLS — confirm whether Sangita/office holds one; if not, defer until 1–3 are live.
