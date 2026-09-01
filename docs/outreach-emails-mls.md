@@ -104,7 +104,7 @@ Thank you,
 
 Hello,
 
-I operate NJREindex (https://njreindex.com), a consumer listing-display and market-statistics platform for New Jersey, in production on the Monmouth Ocean Regional MLS feed and currently completing data agreements with All Jersey MLS. We'd like to add South Jersey Shore Regional MLS coverage (Atlantic &amp; Cumberland) — the shore corridor is core to our audience.
+I operate NJREindex (https://njreindex.com), a consumer listing-display and market-statistics platform for New Jersey, in production on the Monmouth Ocean Regional MLS feed and currently completing data agreements with All Jersey MLS. We'd like to add South Jersey Shore Regional MLS coverage (Atlantic & Cumberland) — the shore corridor is core to our audience.
 
 Our team includes licensed salesperson Sangita Sancheti (Coldwell Banker [OFFICE]), whose broker of record, Dawn Mauro, will execute required broker agreements. Could you send your third-party vendor / IDX data-access application, fee schedule, and feed documentation (RETS or RESO Web API)?
 
