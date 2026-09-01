@@ -6,7 +6,8 @@
 
 - **Platform**: NJREindex (https://njreindex.com) — a consumer real-estate market-intelligence website for New Jersey.
 - **Operator**: [YOUR LEGAL NAME / ENTITY — fill in]
-- **Sponsoring participant**: Sangita Sancheti, [license #, brokerage, office — fill in]
+- **Sponsoring participant**: Sangita Sancheti, [license # — fill in], Coldwell Banker [office — fill in]
+- **Broker of record (signatory)**: Dawn Mauro, [license # — fill in]
 - **Current data relationships**: Monmouth Ocean Regional REALTORS® MLS (Spark platform feed), in production since 2026.
 
 ## 2. What the platform does (intended use)
@@ -37,7 +38,7 @@ Consumer-facing display and derived statistics:
 
 ## 5. Requested access
 
-- **Feed type**: RESO Web API preferred (RETS acceptable). Full active inventory plus status changes; **sold/closed records requested for the statistics and comparable-sales uses above** — we understand sold-data display may require a separate or expanded license and will conform the product to the granted scope.
+- **Feed type**: RESO Web API preferred (RETS acceptable). **Primary request: full active inventory plus status changes (IDX scope).** Sold/closed records are additionally requested where available for the statistics and comparable-sales uses above — this is optional to the application: we will operate within IDX-only scope if sold data is not granted, and conform the product to whatever scope is licensed.
 - **Update frequency**: 2× daily polling (low volume; ~2 requests/second bursts, paginated).
 
 ## 6. Contact
