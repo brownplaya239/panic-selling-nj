@@ -2,6 +2,8 @@
 
 *Signatories: Sangita Sancheti (sponsoring participant) + Dawn Mauro (broker of record — has agreed to sign). Attach docs/VENDOR-APPLICATION.md (filled in) to every application. Posture: IDX/actives first; sold data as an optional rider, never a blocker.*
 
+**STATUS 2026-09-01: all four outreach emails SENT** (All Jersey 3:31pm · GSMLS 3:36pm · Bright contentlicensing@+data-support@ 3:44pm · NJMLS 4:06pm). Awaiting replies; expect 2-8 week clocks. In follow-ups, self-describe as "licensed salesperson" or "platform operator sponsored by participant" — not "realtor" — unless NAR membership exists.
+
 **Role structure (settled):** the operator (NJREindex) is a THIRD-PARTY VENDOR — signs vendor NDAs/agreements only, never joins an MLS, needs no RE license. Sangita must hold membership in EACH target MLS (secondary memberships are normal, ~a few hundred $/yr each; her Coldwell office may already participate in several). Where she won't join, the fallback is a direct commercial data license (no sponsor needed — e.g., Bright content licensing) at commercial pricing. IDX sections of the site are legally the participant's advertising → Sangita/Coldwell attribution required per MLS display rules + NJ ad regs.
 
 - [ ] **Step zero: list which MLSs Sangita's logins cover** — that list = the immediate filings; gaps = secondary-membership vs direct-license decision per MLS.
