@@ -78,3 +78,54 @@ Primary scope is active-listing display and derived market statistics, conformin
 
 Thank you,
 [YOUR NAME] · [PHONE]
+
+---
+
+## 5 — Cape May County MLS (CMCAOR)  ·  Via contact form at cmcar.org/contact.php · (609) 624-3500
+
+**Subject:** IDX / vendor data-access inquiry — NJREindex
+
+Hello,
+
+I operate NJREindex (https://njreindex.com), a consumer listing-display and market-statistics platform for New Jersey, in production on the Monmouth Ocean Regional MLS feed and currently completing data agreements with All Jersey MLS. We'd like to add Cape May County MLS coverage — the shore markets are central to our audience.
+
+Our team includes licensed salesperson Sangita Sancheti (Coldwell Banker [OFFICE]), whose broker of record, Dawn Mauro, will execute required broker agreements. Could you send your third-party vendor / IDX data-access application, fee schedule, and feed documentation (RETS or RESO Web API)?
+
+Primary scope is active-listing display with full conformance to your display and attribution rules. A technical description of the platform is attached (or available on request).
+
+Thank you,
+[YOUR NAME] · [PHONE]
+
+---
+
+## 6 — South Jersey Shore Regional MLS  ·  Via acrealestate.org contact · (609) 652-8486
+
+**Subject:** IDX / vendor data-access inquiry — NJREindex
+
+Hello,
+
+I operate NJREindex (https://njreindex.com), a consumer listing-display and market-statistics platform for New Jersey, in production on the Monmouth Ocean Regional MLS feed and currently completing data agreements with All Jersey MLS. We'd like to add South Jersey Shore Regional MLS coverage (Atlantic &amp; Cumberland) — the shore corridor is core to our audience.
+
+Our team includes licensed salesperson Sangita Sancheti (Coldwell Banker [OFFICE]), whose broker of record, Dawn Mauro, will execute required broker agreements. Could you send your third-party vendor / IDX data-access application, fee schedule, and feed documentation (RETS or RESO Web API)?
+
+Primary scope is active-listing display with full conformance to your display and attribution rules. Technical description of the platform attached (or available on request).
+
+Thank you,
+[YOUR NAME] · [PHONE]
+
+---
+
+## 7 — Hudson County MLS (RMLSNJ)  ·  Via rmlsnj.com contact page
+
+**Subject:** IDX / vendor data-access inquiry — NJREindex
+
+Hello,
+
+I operate NJREindex (https://njreindex.com), a consumer listing-display and market-statistics platform for New Jersey, in production on the Monmouth Ocean Regional MLS feed and currently completing data agreements with All Jersey MLS. We'd like to add Hudson County MLS coverage.
+
+Our team includes licensed salesperson Sangita Sancheti (Coldwell Banker [OFFICE]), whose broker of record, Dawn Mauro, will execute required broker agreements. We understand your data-access fees run approximately $100 setup + $200 annual per office — please confirm current pricing, and send the vendor application and feed documentation (RETS or RESO Web API).
+
+Primary scope is active-listing display with full conformance to your display and attribution rules. Technical description of the platform attached (or available on request).
+
+Thank you,
+[YOUR NAME] · [PHONE]
