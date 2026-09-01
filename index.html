@@ -366,6 +366,13 @@
   .br-office-id{font-family:var(--mono);font-size:9px;color:var(--text3);font-weight:400;}
   .board-row.noclick{cursor:default;}
   .board-row.noclick:hover{background:none;}
+  /* NJ PUBLIC RECORDS */
+  #modeBtnRecords.active{background:#8b7cf6;border-color:#8b7cf6;color:#fff;font-weight:600;opacity:1;}
+  .records-wrap{padding:18px 16px;max-width:1100px;}
+  .records-title-row{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px;margin-bottom:8px;}
+  .records-name{font-family:var(--mono);font-size:13px;font-weight:700;letter-spacing:.1em;color:#8b7cf6;}
+  .records-period{font-family:var(--mono);font-size:9px;color:var(--text3);}
+  .rec-yoy-up{color:var(--green);} .rec-yoy-dn{color:var(--red);}
   /* CROSS-LINKS */
   .jump-link{color:var(--cyan);cursor:pointer;font-family:var(--mono);font-size:9px;white-space:nowrap;opacity:.85;}
   .jump-link:hover{opacity:1;text-decoration:underline;}
@@ -519,6 +526,7 @@
   <button class="mode-btn" id="modeBtnDeals" onclick="setMode('deals')">💎 Deal Screener</button>
   <button class="mode-btn" id="modeBtnSales" onclick="setMode('sales')">📋 Recent Sales</button>
   <button class="mode-btn" id="modeBtnBoards" onclick="setMode('boards')">🏆 Leaderboards</button>
+  <button class="mode-btn" id="modeBtnRecords" onclick="setMode('records')">🏛 NJ Public Records</button>
 </div>
 
 <!-- FILTER BAR -->
@@ -740,6 +748,31 @@
       are normalized, additional transactions are ingested, and claims are verified. No payment affects rankings.
       <span id="boardsSrcNotice"></span>
     </div>
+  </div>
+</div>
+
+<!-- NJ PUBLIC RECORDS VIEW -->
+<div id="recordsView" style="display:none">
+  <div class="records-wrap">
+    <div class="records-title-row">
+      <div class="records-name">NJ PUBLIC RECORDS — RECORDED HOME SALES</div>
+      <div class="records-period" id="recordsPeriod"></div>
+    </div>
+    <div class="sales-intro">Every recorded, arm's-length residential deed in New Jersey — all 21 counties, 500+ municipalities — from the State's official SR-1A sales records. Independent of any MLS.</div>
+    <div class="sales-pulse" id="recordsPulse"></div>
+    <div class="sales-controls" id="recordsControls" style="display:none">
+      <button class="sv-toggle active" id="rvCounties" onclick="setRecordsView('counties')">▦ Counties</button>
+      <button class="sv-toggle" id="rvTowns" onclick="setRecordsView('towns')">🏘 Towns</button>
+      <button class="sv-toggle" id="rvDeeds" onclick="setRecordsView('deeds')">≡ Recent Deeds</button>
+      <select class="df-select" id="rcCounty" onchange="renderRecords()"><option value="all">County: All</option></select>
+      <select class="df-select" id="rcSort" onchange="renderRecords()">
+        <option value="n">Sort: Sales</option><option value="median">Median $</option>
+        <option value="ppsf">$/SF</option><option value="yoy">YoY %</option><option value="volume">$ Volume</option>
+      </select>
+      <span class="df-count" id="rcCount"></span>
+    </div>
+    <div id="recordsResults"><div class="loading"><span class="spinner"></span>Loading recorded sales...</div></div>
+    <div class="sales-foot"><b>Source &amp; method.</b> NJ Division of Taxation SR-1A deed records (official state data, updated periodically; recording typically lags closing by 1–3 months). Only sales the State classifies as <b>usable / arm's-length</b> are counted — family transfers, sheriff's deeds, and other non-market conveyances are excluded by the State's own coding. "Residential" = property class 2 (1–4 family). YoY compares 2026 year-to-date with the same months of 2025. This data is independent of, and unaffiliated with, any MLS.</div>
   </div>
 </div>
 
@@ -1438,8 +1471,9 @@ function setMode(mode) {
   document.getElementById('modeBtnDeals').classList.toggle('active', mode === 'deals');
   document.getElementById('modeBtnSales').classList.toggle('active', mode === 'sales');
   document.getElementById('modeBtnBoards').classList.toggle('active', mode === 'boards');
+  document.getElementById('modeBtnRecords').classList.toggle('active', mode === 'records');
   // Standalone panels swap the list UI out entirely
-  const listView = mode !== 'comps' && mode !== 'towns' && mode !== 'deals' && mode !== 'sales' && mode !== 'boards';
+  const listView = !['comps', 'towns', 'deals', 'sales', 'boards', 'records'].includes(mode);
   document.querySelector('.filter-bar').style.display     = listView ? '' : 'none';
   document.querySelector('.bed-filter').style.display     = listView ? '' : 'none';
   document.querySelector('.area-tabs-wrap').style.display = listView ? '' : 'none';
@@ -1450,6 +1484,7 @@ function setMode(mode) {
   document.getElementById('dealsView').style.display      = mode === 'deals' ? 'block' : 'none';
   document.getElementById('salesView').style.display      = mode === 'sales' ? 'block' : 'none';
   document.getElementById('boardsView').style.display     = mode === 'boards' ? 'block' : 'none';
+  document.getElementById('recordsView').style.display    = mode === 'records' ? 'block' : 'none';
   if (!listView) {
     document.getElementById('alertCtaBar').style.display  = 'none';
     document.getElementById('townStatsBar').style.display = 'none';
@@ -1477,6 +1512,11 @@ function setMode(mode) {
   if (mode === 'boards') {
     document.getElementById('headerMode').textContent = 'Market Leaderboards';
     renderBoards();
+    return;
+  }
+  if (mode === 'records') {
+    document.getElementById('headerMode').textContent = 'NJ Public Records';
+    loadRecords();
     return;
   }
   currentArea = 'all';
@@ -2240,6 +2280,133 @@ async function submitClaim() {
   if (error) { err.textContent = 'Could not submit — please try again.'; return; }
   closeClaimModal();
   showToast('Claim submitted — we\'ll verify against MLS records and follow up by email.');
+}
+
+// NJ PUBLIC RECORDS — statewide recorded-deed sales (SR-1A), independent of MLS
+let _recRows = null;      // pr_window_stats cache
+let _recView = 'counties';
+let _recDataMax = null;
+async function loadRecords() {
+  if (_recRows) { renderRecords(); return; }
+  const el = document.getElementById('recordsResults');
+  try {
+    _recRows = [];
+    for (let from = 0; from < 3000; from += 1000) {
+      const { data, error } = await sb.from('pr_window_stats').select('*').range(from, from + 999);
+      if (error) throw error;
+      _recRows.push(...(data || []));
+      if (!data || data.length < 1000) break;
+    }
+    if (!_recRows.length) {
+      _recRows = null;
+      el.innerHTML = '<div class="loading">Public-records data not loaded yet — run the SR-1A ingestion.</div>';
+      return;
+    }
+    // Data edge from the freshest recorded deed
+    const { data: newest } = await sb.from('pr_recent_sales').select('deed_date').order('deed_date', { ascending: false }).limit(1);
+    _recDataMax = newest?.[0]?.deed_date || null;
+    // County dropdown
+    const counties = [...new Set(_recRows.filter(r => r.scope_type === 'county').map(r => r.scope_id))].sort();
+    document.getElementById('rcCounty').innerHTML = '<option value="all">County: All</option>'
+      + counties.map(c => '<option value="' + c + '">' + c + '</option>').join('');
+    // Pulse from the exact statewide 12-month rollup
+    const st = _recRows.find(r => r.scope_type === 'state' && r.win === 'w12');
+    const stY = _recRows.find(r => r.scope_type === 'state' && r.win === 'ytd26');
+    const stP = _recRows.find(r => r.scope_type === 'state' && r.win === 'sp25');
+    const yoy = (stY && stP) ? ((stY.res_median - stP.res_median) / stP.res_median) * 100 : null;
+    document.getElementById('recordsPulse').innerHTML =
+        '<div class="pulse-tile"><div class="v">' + (st ? st.res_n.toLocaleString() : '--') + '</div><div class="l">SALES / TRAILING 12MO</div></div>'
+      + '<div class="pulse-tile"><div class="v">' + (st ? fmtM(st.res_median) : '--') + '</div><div class="l">MEDIAN SOLD</div></div>'
+      + '<div class="pulse-tile"><div class="v">$' + (st ? (st.res_volume / 1e9).toFixed(1) + 'B' : '--') + '</div><div class="l">DOLLAR VOLUME</div></div>'
+      + '<div class="pulse-tile"><div class="v">$' + (st ? st.res_med_ppsf : '--') + '</div><div class="l">MEDIAN $/SF</div></div>'
+      + (yoy != null ? '<div class="pulse-tile"><div class="v ' + (yoy >= 0 ? 'grn' : 'red') + '">' + (yoy >= 0 ? '+' : '') + yoy.toFixed(1) + '%</div><div class="l">MEDIAN YOY (YTD)</div></div>' : '');
+    document.getElementById('recordsPeriod').textContent =
+      (_recDataMax ? 'Recorded through ' + new Date(_recDataMax + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) + ' · ' : '')
+      + 'Source: NJ Division of Taxation SR-1A';
+    document.getElementById('recordsControls').style.display = 'flex';
+    renderRecords();
+  } catch (e) {
+    _recRows = null;
+    el.innerHTML = '<div class="loading">Public-records data unavailable — please try again.</div>';
+  }
+}
+function setRecordsView(v) {
+  _recView = v;
+  for (const [id, key] of [['rvCounties', 'counties'], ['rvTowns', 'towns'], ['rvDeeds', 'deeds']])
+    document.getElementById(id).classList.toggle('active', key === v);
+  renderRecords();
+}
+function renderRecords() {
+  if (!_recRows) return;
+  if (_recView === 'deeds') { renderRecordsDeeds(); return; }
+  const el = document.getElementById('recordsResults');
+  const county = document.getElementById('rcCounty').value;
+  const sort = document.getElementById('rcSort').value;
+  const scope = _recView === 'counties' ? 'county' : 'muni';
+  const byId = {};
+  for (const r of _recRows) {
+    if (r.scope_type !== scope) continue;
+    if (scope === 'muni' && county !== 'all' && r.county !== county) continue;
+    (byId[r.scope_id] ??= {})[r.win] = r;
+  }
+  let rows = Object.values(byId).map(w => {
+    const b = w.w12 || w.ytd26; if (!b) return null;
+    const yoy = (w.ytd26 && w.sp25 && w.sp25.res_median > 0)
+      ? ((w.ytd26.res_median - w.sp25.res_median) / w.sp25.res_median) * 100 : null;
+    return { label: b.scope_label, county: b.county, n: b.res_n, median: b.res_median,
+             ppsf: b.res_med_ppsf, volume: b.res_volume, yoy };
+  }).filter(Boolean);
+  rows.sort((a, b) =>
+    sort === 'median' ? (b.median || 0) - (a.median || 0)
+    : sort === 'ppsf' ? (b.ppsf || 0) - (a.ppsf || 0)
+    : sort === 'yoy' ? (b.yoy ?? -999) - (a.yoy ?? -999)
+    : sort === 'volume' ? (b.volume || 0) - (a.volume || 0)
+    : (b.n || 0) - (a.n || 0));
+  if (scope === 'muni') rows = rows.slice(0, 120);
+  document.getElementById('rcCount').textContent = rows.length + (scope === 'county' ? ' counties' : ' towns');
+  el.innerHTML = '<div class="sales-table-wrap"><table class="sales-table">'
+    + '<thead><tr><th>' + (scope === 'county' ? 'COUNTY' : 'MUNICIPALITY') + '</th>'
+    + (scope === 'muni' ? '<th>COUNTY</th>' : '')
+    + '<th>SALES 12MO</th><th>MEDIAN SOLD</th><th>MED $/SF</th><th>YOY MEDIAN</th><th>$ VOLUME</th></tr></thead><tbody>'
+    + rows.map(r => '<tr>'
+      + '<td class="st-price">' + r.label + '</td>'
+      + (scope === 'muni' ? '<td>' + (r.county || '--') + '</td>' : '')
+      + '<td>' + r.n.toLocaleString() + '</td>'
+      + '<td class="st-price">' + fmtPrice(r.median) + '</td>'
+      + '<td>' + (r.ppsf ? '$' + r.ppsf : '--') + '</td>'
+      + '<td class="' + (r.yoy == null ? '' : r.yoy >= 0 ? 'rec-yoy-up' : 'rec-yoy-dn') + '">'
+      + (r.yoy == null ? '--' : (r.yoy >= 0 ? '+' : '') + r.yoy.toFixed(1) + '%') + '</td>'
+      + '<td>$' + (r.volume / 1e6).toFixed(0) + 'M</td>'
+      + '</tr>').join('')
+    + '</tbody></table></div>'
+    + (scope === 'muni' ? '<div class="br-sub" style="margin-top:8px">Top 120 by selected sort · towns with recorded usable residential sales</div>' : '');
+}
+async function renderRecordsDeeds() {
+  const el = document.getElementById('recordsResults');
+  const county = document.getElementById('rcCounty').value;
+  el.innerHTML = '<div class="loading"><span class="spinner"></span>Loading recent deeds...</div>';
+  try {
+    let q = sb.from('pr_recent_sales').select('*').order('deed_date', { ascending: false }).limit(300);
+    if (county !== 'all') q = q.eq('county', county);
+    const { data, error } = await q;
+    if (error) throw error;
+    document.getElementById('rcCount').textContent = (data || []).length + ' deeds';
+    el.innerHTML = '<div class="sales-table-wrap"><table class="sales-table">'
+      + '<thead><tr><th>DEED DATE</th><th>ADDRESS</th><th>MUNICIPALITY</th><th>COUNTY</th><th>PRICE</th><th>$/SF</th><th>SQFT</th><th>YR BUILT</th></tr></thead><tbody>'
+      + (data || []).map(r => '<tr>'
+        + '<td>' + new Date(r.deed_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + '</td>'
+        + '<td>' + (r.address || '--') + '</td>'
+        + '<td>' + r.municipality + '</td>'
+        + '<td>' + r.county + '</td>'
+        + '<td class="st-price">' + fmtPrice(r.price) + '</td>'
+        + '<td>' + (r.ppsf ? '$' + r.ppsf : '--') + '</td>'
+        + '<td>' + (r.sqft ? r.sqft.toLocaleString() : '--') + '</td>'
+        + '<td>' + (r.year_built || '--') + '</td>'
+        + '</tr>').join('')
+      + '</tbody></table></div>';
+  } catch (e) {
+    el.innerHTML = '<div class="loading">Could not load deeds — please try again.</div>';
+  }
 }
 
 // RESET ALL FILTERS

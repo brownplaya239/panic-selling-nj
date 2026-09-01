@@ -774,3 +774,48 @@ CREATE POLICY "No public drop write"    ON price_drops  FOR INSERT WITH CHECK (f
 ALTER TABLE subscribers ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Anyone can subscribe"    ON subscribers  FOR INSERT WITH CHECK (true);
 CREATE POLICY "No public read subs"     ON subscribers  FOR SELECT USING (false);
+
+-- ============================================================
+-- NJ PUBLIC RECORDS (SR-1A deed sales) — statewide, MLS-independent
+-- Populated by public-records.mjs (parses NJ Treasury SR-1A files)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS pr_town_stats (
+  muni_code    TEXT NOT NULL,
+  ym           TEXT NOT NULL,           -- 'YYYY-MM' of deed date
+  county       TEXT, municipality TEXT,
+  res_n        INTEGER,                 -- usable class-2 residential sales
+  res_median   BIGINT,
+  res_volume   BIGINT,
+  res_med_ppsf INTEGER,
+  all_n        INTEGER,
+  PRIMARY KEY (muni_code, ym)
+);
+ALTER TABLE pr_town_stats ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public read pr town stats" ON pr_town_stats FOR SELECT USING (true);
+
+CREATE TABLE IF NOT EXISTS pr_window_stats (
+  id           BIGSERIAL PRIMARY KEY,
+  scope_type   TEXT NOT NULL,           -- 'state' | 'county' | 'muni'
+  scope_id     TEXT NOT NULL,
+  scope_label  TEXT,
+  county       TEXT,
+  win          TEXT NOT NULL,           -- 'w12' | 'ytd26' | 'sp25'
+  res_n        INTEGER,
+  res_median   BIGINT,
+  res_volume   BIGINT,
+  res_med_ppsf INTEGER
+);
+ALTER TABLE pr_window_stats ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public read pr window stats" ON pr_window_stats FOR SELECT USING (true);
+
+CREATE TABLE IF NOT EXISTS pr_recent_sales (
+  id            BIGSERIAL PRIMARY KEY,
+  muni_code     TEXT, county TEXT, municipality TEXT,
+  address       TEXT,
+  price         BIGINT,
+  deed_date     DATE, recorded_date DATE,
+  property_class TEXT, year_built INTEGER, sqft INTEGER, ppsf INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_pr_recent_date ON pr_recent_sales(deed_date DESC);
+ALTER TABLE pr_recent_sales ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public read pr recent" ON pr_recent_sales FOR SELECT USING (true);

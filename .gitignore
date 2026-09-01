@@ -27,3 +27,6 @@ poll.log
 
 # Claude workspace
 .claude/
+
+# NJ public-records raw files (100MB+ — re-download from nj.gov)
+data-public/
