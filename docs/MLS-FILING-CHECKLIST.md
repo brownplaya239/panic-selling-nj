@@ -2,6 +2,10 @@
 
 *Signatories: Sangita Sancheti (sponsoring participant) + Dawn Mauro (broker of record — has agreed to sign). Attach docs/VENDOR-APPLICATION.md (filled in) to every application. Posture: IDX/actives first; sold data as an optional rider, never a blocker.*
 
+**Role structure (settled):** the operator (NJREindex) is a THIRD-PARTY VENDOR — signs vendor NDAs/agreements only, never joins an MLS, needs no RE license. Sangita must hold membership in EACH target MLS (secondary memberships are normal, ~a few hundred $/yr each; her Coldwell office may already participate in several). Where she won't join, the fallback is a direct commercial data license (no sponsor needed — e.g., Bright content licensing) at commercial pricing. IDX sections of the site are legally the participant's advertising → Sangita/Coldwell attribution required per MLS display rules + NJ ad regs.
+
+- [ ] **Step zero: list which MLSs Sangita's logins cover** — that list = the immediate filings; gaps = secondary-membership vs direct-license decision per MLS.
+
 ## 0. MORMLS (already live) — the template conversation
 - [ ] Written confirmation of current feed scope, esp. derived statistics/sold-data use (the leaderboard question). Whatever language works here gets reused in every other application.
 
