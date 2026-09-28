@@ -508,7 +508,7 @@
 
 <!-- PAGE HEADER -->
 <div class="page-header">
-  <div class="page-title"><strong id="headerArea">Monmouth &amp; Ocean County</strong> <span id="headerMode">Price Drop</span> Dashboard</div>
+  <div class="page-title"><strong id="headerArea">Monmouth &amp; Ocean County</strong> <span id="headerMode">Active Listings</span> Dashboard</div>
   <div class="page-metrics">
     <div><span class="m-val" id="m-drops">--</span>LISTINGS</div>
     <div><span class="m-val" id="m-avg">--</span>AVG DROP %</div>
@@ -519,8 +519,8 @@
 <!-- MODE TOGGLE -->
 <div class="mode-toggle">
   <span class="mode-toggle-label">VIEW :</span>
-  <button class="mode-btn active" id="modeBtnDrops" onclick="setMode('drops')">▼ Price Drops</button>
-  <button class="mode-btn" id="modeBtnAll" onclick="setMode('all')">▣ All Active Listings</button>
+  <button class="mode-btn" id="modeBtnDrops" onclick="setMode('drops')">▼ Price Drops</button>
+  <button class="mode-btn active" id="modeBtnAll" onclick="setMode('all')">▣ All Active Listings</button>
   <button class="mode-btn" id="modeBtnComps" onclick="setMode('comps')">⌂ Sold Comps</button>
   <button class="mode-btn" id="modeBtnTowns" onclick="setMode('towns')">★ Best Towns to Buy</button>
   <button class="mode-btn" id="modeBtnDeals" onclick="setMode('deals')">💎 Deal Screener</button>
@@ -565,7 +565,7 @@
       <option value="pct">Sort: Biggest % Drop</option>
       <option value="recent">Sort: Most Recent</option>
       <option value="low">Sort: Lowest Price</option>
-      <option value="dom">Sort: Most Days on Market</option>
+      <option value="dom" selected>Sort: Most Days on Market</option>
     </select>
     <button class="btn-reset-all" onclick="resetFilters()">× Reset All</button>
   </div>
@@ -1027,7 +1027,7 @@ let allDrops    = [];
 let currentArea = 'all';
 let currentType = 'all';
 let currentBed  = 'any';
-let currentMode = 'drops'; // 'drops' | 'all'
+let currentMode = 'all'; // 'drops' | 'all'
 const _dropCache = {};
 
 //  DATA LOADING
