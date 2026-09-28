@@ -5,7 +5,10 @@
   publish = "dist"
   # Skip Netlify builds when the deployable surface didn't change.
   # Exit 0 = skip build (saves credits); exit 1 = build.
-  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- index.html assets/ netlify/ scripts/build.mjs netlify.toml"
+  # A build without cache (and a manual re-deploy of the same commit) gets
+  # CACHED_COMMIT_REF == COMMIT_REF, where a diff would always say "no change"
+  # and silently cancel the deploy — so those cases always build.
+  ignore = 'if [ -z "$CACHED_COMMIT_REF" ] || [ "$CACHED_COMMIT_REF" = "$COMMIT_REF" ]; then exit 1; fi; git diff --quiet "$CACHED_COMMIT_REF" "$COMMIT_REF" -- index.html assets/ netlify/ scripts/build.mjs netlify.toml'
 
 [functions]
   directory = "netlify/functions"
