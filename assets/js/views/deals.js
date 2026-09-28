@@ -84,7 +84,7 @@
     const set = (id, v) => { const s = U.$('#' + id, el); if ([...s.options].some((o) => o.value === v)) s.value = v; };
     set('dfCounty', st.county); set('dfTown', st.town); set('dfSubtype', st.subtype); set('dfGrade', st.grade);
     set('dfMinP', st.minp); set('dfMaxP', st.maxp); set('dfAcres', st.acres); set('dfSenior', st.senior); set('dfSort', st.sort);
-    U.$('#dfZoning', el).value = st.zoning;
+    if (document.activeElement !== U.$('#dfZoning', el)) U.$('#dfZoning', el).value = st.zoning;
   }
   function sync() {
     pushControls();

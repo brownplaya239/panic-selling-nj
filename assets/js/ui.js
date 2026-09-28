@@ -126,9 +126,7 @@
     const si = U.$('.dt-toolbar input[type=search]', el);
     if (si) si.addEventListener('input', U.debounce(() => { q = si.value; page = 0; apply(); }, 150));
     const cb = U.$('.dt-colbtn', el), cm = U.$('.colmenu', el);
-    cb.addEventListener('click', (e) => { e.stopPropagation(); cm.hidden = !cm.hidden; cb.setAttribute('aria-expanded', String(!cm.hidden)); });
-    cm.addEventListener('click', (e) => e.stopPropagation());
-    document.addEventListener('click', () => { cm.hidden = true; cb.setAttribute('aria-expanded', 'false'); });
+    cb.addEventListener('click', () => { cm.hidden = !cm.hidden; cb.setAttribute('aria-expanded', String(!cm.hidden)); });
     cm.addEventListener('change', (e) => {
       const k = e.target.dataset.col; if (!k) return;
       if (e.target.checked) hidden.delete(k); else hidden.add(k);
@@ -139,6 +137,18 @@
     apply();
     return { el, setRows(r) { rows = r || []; page = 0; apply(); }, rows: () => view };
   };
+
+  // One listener closes any open column menu when clicking outside it.
+  document.addEventListener('click', (e) => {
+    U.$$('.dt .colmenu:not([hidden])').forEach((m) => {
+      const wrap = m.closest('.pop-wrap');
+      if (wrap && !wrap.contains(e.target)) { m.hidden = true; U.$('.dt-colbtn', wrap)?.setAttribute('aria-expanded', 'false'); }
+    });
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    U.$$('.dt .colmenu:not([hidden])').forEach((m) => { m.hidden = true; const b = U.$('.dt-colbtn', m.closest('.pop-wrap')); b?.setAttribute('aria-expanded', 'false'); b?.focus(); });
+  });
 
   /* --------------------------------------------------------------- charts */
   // Combined bar (left axis) + line (right axis) time-series chart in SVG, with
@@ -310,7 +320,7 @@
         <div id="alAdv" hidden class="stack">
           <div class="field"><label for="alTownFilter">Towns <span class="muted" style="font-weight:400">(optional — leave empty for all)</span></label>
             <input class="input" id="alTownFilter" placeholder="Filter towns…" autocomplete="off">
-            <div id="alTowns" style="max-height:150px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:6px 8px;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:2px"></div>
+            <div id="alTowns" style="max-height:170px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:6px 10px;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:4px 12px"></div>
             <div class="row small"><span class="muted">County:</span>${App.MLS_COUNTIES.map((c) => `<label class="check"><input type="checkbox" name="alCounty" value="${c}" ${s.counties.includes(c) ? 'checked' : ''}> ${c}</label>`).join('')}</div>
             <div class="notice notice-warn small" id="alCountyNote" hidden>${U.icon('alert', 'icon-sm')}<span>About half of MLS listings don't report a county, so county-only alerts can miss matches. <button type="button" class="link-btn" id="alUseTowns">Use every town in the selected county instead</button></span></div>
           </div>
@@ -515,10 +525,11 @@
   /* ------------------------------------------------------------ comparables */
   // Wraps the existing /api/comps Netlify function (unchanged contract).
   App.comps = {
-    async fetch({ address, sqft, beds }) {
+    async fetch({ address, sqft, beds, lat, lon }) {
       const qs = new URLSearchParams({ address });
       if (sqft) qs.set('sqft', sqft);
       if (beds) qs.set('beds', beds);
+      if (lat != null && lon != null) { qs.set('lat', lat); qs.set('lon', lon); }
       let resp;
       try { resp = await fetch('/api/comps?' + qs.toString()); } catch (e) { throw new Error('Comparables service is unreachable — check your connection.'); }
       const body = await resp.json().catch(() => null);

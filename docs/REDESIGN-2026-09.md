@@ -14,7 +14,7 @@ Full UI/UX redesign of njreindex.com: design system, application shell, homepage
 
 **Correctness issues found while auditing** (fixed in the new frontend unless noted):
 - Paged queries ordered by non-unique columns (`days_on_market`, `drop_dollar`, `close_date`) can skip or duplicate rows across pages → added a unique tiebreak (`listing_id` / `id`).
-- **54% of listings have county "Unknown"** in the feed; the county filter silently hid them. County is now inferred from other listings in the same town (flagged "inferred" in the UI).
+- **54% of listings have county "Unknown"** in the feed (whole towns at a time), and every Howell listing is tagged Ocean (Howell is in Monmouth). The county filter silently hid half the market. Counties are now resolved from (1) the official municipality record when the town name is unique in NJ — which also corrects Howell — then (2) the ZIP code, then (3) the 5 nearest listings when all agree within 3 km. Unknown counties dropped from 3,071 listings to 208; a hold-out test of the nearest-listings rule was 99.93% accurate (1 miss in 1,458, on a county border). Resolved counties are labeled "inferred" with their source.
 - **1,281 "Adult Community" listings** matched no property-type filter. Type groups now cover every type in the feed.
 - The feed's **original list price is sometimes reset to the current price after a cut** (e.g. a tracked $799K → $700K cut showed "listed at $700,000"). "Was" now uses the highest known asking price.
 - The feed tags some towns with the wrong county (e.g. Howell as Ocean). Official municipality records are now preferred for county display.
@@ -37,6 +37,9 @@ assets/js/views/*.js        one file per route, loaded on first visit (route-lev
 - **Routing:** URL query state (`?view=listings&seg=drops&town=Brick`). Every filter is in the URL (bookmarkable/shareable); Back restores filters and scroll. Legacy links still work: `?lb=o:ID` / `?lb=a:ID` open ranking profiles, `?unsub=TOKEN` unsubscribes, `?view=boards|towns` redirect to their new homes.
 - **Data layer:** in-memory cache with in-flight de-duplication; paged reads fetch the first page with an exact count, then all remaining pages **in parallel**. Price Drops and All Active are loaded once (in parallel) and joined client-side, so the segment switch is instant.
 - **Lazy loading:** Leaflet + clustering load only when a map is shown (never on the homepage).
+- **Publishing allowlist:** `scripts/build.mjs` copies only `index.html` and `assets/` into `dist/`, which is all Netlify publishes. Before this, Netlify published the entire repository, so internal files (outreach emails, vendor application, beta outreach list, project state, poller, schema) were publicly downloadable from njreindex.com.
+- **Local development:** `node dev-server.mjs` serves exactly the published files plus the real `/api/comps` function (reading `SPARK_ACCESS_TOKEN` from `.env`) at http://localhost:8788. The Browser pane's "site" preview uses it. A plain static server can't run the function, which is why comparables failed in the earlier local preview.
+- **Comparables:** `/api/comps` accepts optional `lat`/`lon`; property pages send the listing's MLS coordinates, so lots and new-construction addresses (e.g. "0 Trinity Court … Model") that the Census geocoder can't find still get comparables. Address-only requests behave exactly as before.
 - **Versioned assets:** URLs carry `?v=2026.09.28a` and are cached for a year (`netlify.toml`). **Bump `App.VERSION` in `core.js` and the three `?v=` references in `index.html` whenever any asset changes.**
 
 ## 3. What was built
@@ -107,10 +110,30 @@ axe-core (WCAG 2.0/2.1/2.2 A + AA rules) run on Dashboard, Listings, Property, D
 ## 8. Follow-ups (not done — need a decision or a different system)
 
 1. **Map tiles:** uses OpenStreetMap's public tile server (fine for development and light traffic). Before significant traffic, switch to a keyed provider (MapTiler/Stadia) by changing `App.cfg.TILES` in `ui.js`. CARTO basemaps now require an API key.
-2. **Poller county inference:** alert matching and `cut_edge` county rollups use the feed's county, which is missing on ~54% of listings and wrong for some towns. Inferring county in the poller would fix alerts, county stats, and the Howell/Ocean misgrouping.
+2. **Poller county resolution:** the site now resolves counties client-side, but alert matching and `cut_edge` county rollups in the database still use the feed's county (missing on ~54% of listings; Howell tagged Ocean). Porting the same three-step resolution into the poller would fix county-only alerts and county stats.
 3. **Poller original price:** preserve the first-seen asking price instead of overwriting `original_price`.
 4. **Slow queries:** agent/brokerage profile panels take 5–8 s (`listings` filtered by agent/office ids) → add indexes on `agent_id`, `list_office_id`, `buyer_agent_id`, `buyer_office_id`. `town_stats`, `town_outcomes`, and `cut_edge` compute on every request (2–4 s) → materialize like `active_drops`.
 5. **Taxes & assessment:** integrate NJ MOD-IV to fill the property-page section currently marked unavailable.
 6. **Accounts:** the workspace is per-browser. Cross-device saved searches and server-side alert management need authentication.
-7. **Comparables locally:** `/api/comps` only runs on Netlify (or `netlify dev`), so it shows its error state in the plain local preview.
-8. **Tests:** verification was scripted in the preview browser; there is no automated test suite yet.
+7. **Tests:** verification was scripted in the preview browser (see §9); there is no automated test suite yet.
+
+## 9. Verification pass (second round)
+
+Every control on every route was exercised in the local preview (at the pane's 752 px width and at desktop width), with checks on each outcome. Alert and claim submissions were intercepted in the test page to verify the exact payload without writing to the production database. Roughly 200 distinct scripted checks pass after these fixes:
+
+| Problem found | Fix |
+|---|---|
+| Comparables failed locally (static server can't run Netlify functions) | `dev-server.mjs` runs the real function |
+| Comparables failed for lots/new construction (address not geocodable) | Optional `lat`/`lon` on `/api/comps`; property pages pass MLS coordinates |
+| Theme and density buttons in the account menu did nothing | Menus no longer block click handling; outside clicks close them |
+| Pausing after a space in the listings filter box deleted the space (same in Deal Screener zoning box) | Boxes are never rewritten while focused |
+| Every data-table render added a page-level listener (leak on Sales filters) | One shared listener for column menus |
+| County inference from same-town listings filled 0 listings | Municipality → ZIP → nearest-listings resolution (see §1) |
+| "Use every town in the county" alert helper selected 14 of Ocean's towns | Now 41, via the new county resolution |
+| Closed sales showed $/sq ft from the asking price | Uses the sold price, labeled "(sold)" |
+| Town charts' first month covered only a few days (looked like a crash) | Whole months; current month labeled "to date" |
+| Phone-width "Save search"/"Get alerts" icon buttons had no accessible name; alert-form checkboxes too small for touch | `aria-label`s; 28 px checkbox rows |
+| Mobile filter sheet covered the results with no way to apply-and-close | "Show N results" button |
+| Internal docs, poller, and schema publicly served on njreindex.com | Publish allowlist (`dist/`) |
+
+axe-core (WCAG 2.2 AA) reports 0 violations on all routes at both widths after these fixes.

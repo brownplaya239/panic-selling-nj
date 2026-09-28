@@ -77,7 +77,8 @@
         neighborhood: lr.neighborhood, zip: lr.zip, property_type: lr.property_type, bedrooms: lr.bedrooms, bathrooms: lr.bathrooms, sqft: lr.sqft,
         lot_size: lr.lot_size, year_built: lr.year_built, days_on_market: lr.days_on_market, list_date: lr.list_date, tags: lr.tags,
         latitude: lr.latitude, longitude: lr.longitude,
-        ppsqft: lr.sqft > 0 ? Math.round(lr.current_price / lr.sqft) : null,
+        // A closed sale's $/sq ft is based on what it sold for, not the last ask.
+        ppsqft: lr.sqft > 0 ? Math.round((lr.status === 'Closed' && lr.close_price > 0 ? lr.close_price : lr.current_price) / lr.sqft) : null,
       }, null);
     }
     r.status = lr?.status || 'Active';
@@ -111,14 +112,14 @@
         <div>
           <div class="row" style="margin-bottom:8px">${statusBadge}<span class="badge">${U.esc(r.ptype || 'Property')}</span>${r.lastCut ? `<span class="badge badge-amber">${U.icon('trend-down')}${r.cuts > 1 ? r.cuts + ' tracked price cuts' : 'Tracked price cut'}</span>` : ''}${r.deal ? `<span class="badge badge-teal">Deal grade ${U.esc(r.deal.grade)}</span>` : ''}</div>
           <h1 class="pp-addr">${U.esc(r.street)}</h1>
-          <div class="pp-loc">${U.icon('pin', 'icon-sm')}<span>${U.esc(r.city)}, NJ ${U.esc(r.zip)}</span>${r.county ? `<span>· ${U.esc(r.county)} County${r.countyInferred ? ' <span class="muted small">(inferred)</span>' : ''}</span>` : ''}${r.neighborhood ? `<span>· ${U.esc(r.neighborhood)}</span>` : ''}</div>
+          <div class="pp-loc">${U.icon('pin', 'icon-sm')}<span>${U.esc(r.city)}, NJ ${U.esc(r.zip)}</span>${r.county ? `<span>· ${U.esc(r.county)} County${r.countyInferred ? ` <span class="muted small" data-tip="County from the ${U.esc(L.countySrcLabel(r.countySrc))}; the MLS feed doesn't report it correctly for this listing." tabindex="0">(inferred)</span>` : ''}</span>` : ''}${r.neighborhood ? `<span>· ${U.esc(r.neighborhood)}</span>` : ''}</div>
         </div>
         <div class="pp-price">
           <div class="small muted">${closed ? 'Sold price' : 'Asking price'} ${UI.src('mls')}</div>
           <div class="v">${U.money(closed ? lr.close_price : r.price)}</div>
           ${closed && r.price ? `<div class="small muted">Final asking ${U.money(r.price)} · <span class="${lr.close_price >= r.price ? 'pos' : 'neg'}">${U.pct(((lr.close_price - r.price) / r.price) * 100, 1, true)} vs ask</span></div>` : ''}
           ${!closed && r.orig && r.orig > r.price ? `<div class="small"><span class="muted">Was ${U.money(r.orig)}</span> · <span class="warn strong">−${U.money(r.cum)} (${U.pct(r.cumPct)})</span></div>` : ''}
-          ${r.ppsf ? `<div class="small muted">$${U.int(r.ppsf)} per sq ft ${UI.src('calc', 'Calc')}</div>` : ''}
+          ${r.ppsf ? `<div class="small muted">$${U.int(r.ppsf)} per sq ft${closed ? ' (sold)' : ''} ${UI.src('calc', 'Calc')}</div>` : ''}
         </div>
       </div>
       <div class="pp-actions no-print">
@@ -297,10 +298,12 @@
   async function loadComps(r) {
     const host = U.$('#ppComps', el); if (!host) return;
     try {
-      const body = await App.cached('comps:' + r.address + '|' + (r.sqft || '') + '|' + (r.beds || ''), () => App.comps.fetch({ address: r.address, sqft: r.sqft, beds: r.beds }), 30 * 60 * 1000);
+      // The listing's MLS coordinates avoid geocoding failures on lots and
+      // new-construction addresses (e.g. "0 Trinity Court … Model").
+      const body = await App.cached('comps:' + r.id + '|' + (r.sqft || '') + '|' + (r.beds || ''), () => App.comps.fetch({ address: r.address, sqft: r.sqft, beds: r.beds, lat: r.lat, lon: r.lng }), 30 * 60 * 1000);
       if (cur !== r) return;
       App.comps.render(host, body, { title: true });
-      host.insertAdjacentHTML('beforeend', `<a class="btn btn-secondary btn-sm no-print" style="margin-top:10px" href="${U.qs({ view: 'comps', address: r.address, sqft: r.sqft || '', beds: r.beds || '' })}">Open in Comparables${U.icon('arrow-r', 'icon-sm')}</a>`);
+      host.insertAdjacentHTML('beforeend', `<a class="btn btn-secondary btn-sm no-print" style="margin-top:10px" href="${U.qs({ view: 'comps', address: r.address, sqft: r.sqft || '', beds: r.beds || '', lat: r.lat ?? '', lon: r.lng ?? '' })}">Open in Comparables${U.icon('arrow-r', 'icon-sm')}</a>`);
     } catch (e) {
       host.innerHTML = UI.state('Comparable sales unavailable', U.esc(e.message) + ` <button type="button" class="link-btn" id="ppCompsRetry">Retry</button>`, 'alert');
       U.$('#ppCompsRetry', host)?.addEventListener('click', () => { App.invalidate('comps:'); host.innerHTML = UI.skeletonMetrics(3); loadComps(r); });

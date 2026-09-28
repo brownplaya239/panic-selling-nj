@@ -35,9 +35,13 @@
     },
     async show(host, sp) {
       const address = sp.get('address') || '', sqft = sp.get('sqft') || '', beds = sp.get('beds') || '';
+      // Coordinates arrive only from a property page link; editing the address
+      // and resubmitting drops them (the form doesn't carry them).
+      const lat = parseFloat(sp.get('lat')), lon = parseFloat(sp.get('lon'));
+      const point = Number.isFinite(lat) && Number.isFinite(lon) ? { lat, lon } : {};
       const f = U.$('#cpForm', el);
       f.address.value = address; f.sqft.value = sqft; f.beds.value = beds;
-      const key = [address, sqft, beds].join('|');
+      const key = [address, sqft, beds, point.lat ?? '', point.lon ?? ''].join('|');
       if (!address) { U.$('#cpOut', el).innerHTML = ''; U.$('#cpPrint', el).hidden = true; lastKey = ''; setTimeout(() => f.address.focus(), 50); return; }
       if (key === lastKey) return;
       lastKey = key;
@@ -46,7 +50,7 @@
       btn.disabled = true;
       out.innerHTML = `<div class="card card-pad">${UI.skeletonMetrics(4)}<div class="skel skel-block" style="margin-top:16px"></div><p class="small muted" style="margin-top:10px">Geocoding the address and pulling closed sales…</p></div>`;
       try {
-        const body = await App.cached('comps:' + address + '|' + sqft + '|' + beds, () => App.comps.fetch({ address, sqft: +sqft || null, beds: +beds || null }), 30 * 60 * 1000);
+        const body = await App.cached('comps:' + key, () => App.comps.fetch({ address, sqft: +sqft || null, beds: +beds || null, ...point }), 30 * 60 * 1000);
         out.innerHTML = '<div class="card card-pad" id="cpRes"></div>';
         App.comps.render(U.$('#cpRes', out), body);
         U.$('#cpPrint', el).hidden = false;

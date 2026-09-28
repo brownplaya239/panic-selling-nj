@@ -3,6 +3,8 @@
  * ===================================
  * GET /api/comps?address=123 Main St, Toms River NJ
  * Optional: &sqft=1800  &beds=3  &months=12  &radius=1
+ *           &lat=40.1&lon=-74.2  (known coordinates, e.g. from the MLS listing;
+ *           skips geocoding — needed for lots and new-construction addresses)
  *
  * Geocodes the address (US Census, free), then queries the Spark API for
  * Closed sales inside a bounding box, ranks by similarity, and returns the
@@ -29,24 +31,34 @@ export default async (req) => {
   const months  = Math.min(24, parseInt(params.get('months')) || 12);
   const radius  = Math.min(5, parseFloat(params.get('radius')) || 1);
 
+  const qLat    = parseFloat(params.get('lat'));
+  const qLon    = parseFloat(params.get('lon'));
+  const hasPoint = Number.isFinite(qLat) && Number.isFinite(qLon) && Math.abs(qLat) <= 90 && Math.abs(qLon) <= 180;
+
   const token = process.env.SPARK_ACCESS_TOKEN;
   if (!token)   return json({ success: false, error: 'Server not configured (missing Spark token)' }, 500);
-  if (!address) return json({ success: false, error: 'address parameter is required' }, 400);
+  if (!address && !hasPoint) return json({ success: false, error: 'address parameter is required' }, 400);
 
   try {
-    // 1. Geocode via US Census (free, no key)
-    const geoUrl = new URL('https://geocoding.geo.census.gov/geocoder/locations/onelineaddress');
-    geoUrl.searchParams.set('address', address);
-    geoUrl.searchParams.set('benchmark', 'Public_AR_Current');
-    geoUrl.searchParams.set('format', 'json');
-    const geoResp = await fetch(geoUrl);
-    const geo     = await geoResp.json();
-    const match   = geo?.result?.addressMatches?.[0];
-    if (!match) return json({ success: false, error: 'Address not found — try adding town and NJ, e.g. "123 Main St, Toms River NJ"' }, 404);
-
-    const lat = match.coordinates.y;
-    const lon = match.coordinates.x;
-    const matchedAddress = match.matchedAddress;
+    let lat, lon, matchedAddress;
+    if (hasPoint) {
+      lat = qLat;
+      lon = qLon;
+      matchedAddress = address || `${qLat.toFixed(5)}, ${qLon.toFixed(5)}`;
+    } else {
+      // 1. Geocode via US Census (free, no key)
+      const geoUrl = new URL('https://geocoding.geo.census.gov/geocoder/locations/onelineaddress');
+      geoUrl.searchParams.set('address', address);
+      geoUrl.searchParams.set('benchmark', 'Public_AR_Current');
+      geoUrl.searchParams.set('format', 'json');
+      const geoResp = await fetch(geoUrl);
+      const geo     = await geoResp.json();
+      const match   = geo?.result?.addressMatches?.[0];
+      if (!match) return json({ success: false, error: 'Address not found — try adding town and NJ, e.g. "123 Main St, Toms River NJ"' }, 404);
+      lat = match.coordinates.y;
+      lon = match.coordinates.x;
+      matchedAddress = match.matchedAddress;
+    }
 
     // 2. Bounding box for the radius (miles)
     const dLat = radius / 69;

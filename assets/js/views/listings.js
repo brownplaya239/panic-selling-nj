@@ -30,8 +30,8 @@
             </div>
             <span class="grow"></span>
             <button type="button" class="btn btn-secondary btn-sm lv-filter-toggle" id="lvFiltBtn" aria-expanded="false" aria-controls="lvFilters">${U.icon('sliders', 'icon-sm')}Filters</button>
-            <button type="button" class="btn btn-secondary btn-sm" id="lvSave">${U.icon('bookmark', 'icon-sm')}<span class="hide-sm">Save search</span></button>
-            <button type="button" class="btn btn-primary btn-sm" id="lvAlert">${U.icon('bell', 'icon-sm')}<span class="hide-sm">Get alerts</span></button>
+            <button type="button" class="btn btn-secondary btn-sm" id="lvSave" aria-label="Save search">${U.icon('bookmark', 'icon-sm')}<span class="hide-sm">Save search</span></button>
+            <button type="button" class="btn btn-primary btn-sm" id="lvAlert" aria-label="Get alerts for these filters">${U.icon('bell', 'icon-sm')}<span class="hide-sm">Get alerts</span></button>
             <div class="seg lv-desktop-mode" role="group" aria-label="Layout">
               <button type="button" data-mode="list" aria-pressed="false" aria-label="List only">${U.icon('list', 'icon-sm')}</button>
               <button type="button" data-mode="split" aria-pressed="true" aria-label="List and map">${U.icon('split', 'icon-sm')}</button>
@@ -61,6 +61,7 @@
               </div>
             </div>
             <select class="select w-sort" id="fSort" aria-label="Sort by">${Object.entries(L.SORTS).map(([k, s]) => `<option value="${k}">Sort: ${U.esc(s.label)}</option>`).join('')}</select>
+            <button type="button" class="btn btn-primary lv-sheet-done" id="lvDone">Show results</button>
           </div>
           <div class="lv-chipbar" id="lvChips"></div>
         </div>
@@ -137,10 +138,9 @@
     mm.addEventListener('click', (e) => e.stopPropagation());
     document.addEventListener('click', () => { if (!mm.hidden) { mm.hidden = true; mb.setAttribute('aria-expanded', 'false'); } });
     mm.addEventListener('keydown', (e) => { if (e.key === 'Escape') { mm.hidden = true; mb.setAttribute('aria-expanded', 'false'); mb.focus(); } });
-    $('#lvFiltBtn').addEventListener('click', () => {
-      const f = $('#lvFilters'); const open = !f.classList.contains('is-open');
-      f.classList.toggle('is-open', open); $('#lvFiltBtn').setAttribute('aria-expanded', String(open));
-    });
+    const setSheet = (open) => { $('#lvFilters').classList.toggle('is-open', open); $('#lvFiltBtn').setAttribute('aria-expanded', String(open)); };
+    $('#lvFiltBtn').addEventListener('click', () => setSheet(!$('#lvFilters').classList.contains('is-open')));
+    $('#lvDone').addEventListener('click', () => { setSheet(false); U.$('#lvScroll', el).scrollTop = 0; $('#lvFiltBtn').focus(); });
     const on = (id, key, ev = 'change') => $(id).addEventListener(ev, (e) => {
       p[key] = e.target.type === 'checkbox' ? (e.target.checked ? '1' : '') : e.target.value;
       if (key === 'county') { p.town = 'all'; buildTownOptions(); }
@@ -221,7 +221,9 @@
   function syncControls() {
     const $ = (s) => U.$(s, el);
     U.$$('[data-seg]', el).forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.seg === p.seg)));
-    $('#fQ').value = p.q || '';
+    // Never rewrite the box while the user is typing in it (the stored query is
+    // trimmed, which would eat a just-typed space).
+    if (document.activeElement !== $('#fQ')) $('#fQ').value = p.q || '';
     $('#fType').value = p.type; $('#fBeds').value = p.beds; $('#fMinP').value = p.minp || ''; $('#fMaxP').value = p.maxp || '';
     $('#fDom').value = p.dom; $('#fSort').value = p.sort; $('#fReduced').checked = !!p.reduced;
     if (data) { $('#fCounty').value = p.county; buildTownOptions(); $('#fTown').value = p.town; }
@@ -252,6 +254,7 @@
     U.$('#nAll', el).textContent = U.int(base.length);
     U.$('#nDrops', el).textContent = U.int(nd);
     filtered = p.seg === 'drops' ? base.filter((r) => r.lastCut) : base;
+    U.$('#lvDone', el).textContent = 'Show ' + U.int(filtered.length) + ' ' + U.plural(filtered.length, 'result');
     L.sort(filtered, p.sort);
     shown = boundsOn && map ? filtered.filter((r) => r.lat != null && map.getBounds().contains([r.lat, r.lng])) : filtered;
     if (resetScroll) U.$('#lvScroll', el).scrollTop = 0;
@@ -267,7 +270,7 @@
     const inferred = shown.filter((r) => r.countyInferred).length;
     App.mlsFreshness().catch(() => null).then((fresh) => {
       U.$('#lvMeta', el).innerHTML = `<span><b>${U.int(shown.length)}</b> ${p.seg === 'drops' ? 'listings with tracked price cuts' : 'active listings'}${boundsOn ? ' in map area' : ''} · ${U.esc(L.SORTS[p.sort]?.label || '')}</span>
-        <span class="row" style="gap:10px">${UI.src('mls')}<span>${fresh ? 'Updated ' + U.esc(U.timeAgo(fresh)) : ''}</span>${inferred ? `<span data-tip="The MLS feed omits county on many listings. For ${U.int(inferred)} results shown, county was inferred from other listings in the same town." tabindex="0">${U.icon('info', 'icon-sm')} County inferred for ${U.int(inferred)}</span>` : ''}</span>`;
+        <span class="row" style="gap:10px">${UI.src('mls')}<span>${fresh ? 'Updated ' + U.esc(U.timeAgo(fresh)) : ''}</span>${inferred ? `<span data-tip="The MLS feed omits county on about half of listings and misreports it for some towns. For ${U.int(inferred)} results shown, county comes from the official municipality record, the ZIP code, or nearby listings." tabindex="0">${U.icon('info', 'icon-sm')} County inferred for ${U.int(inferred)}</span>` : ''}</span>`;
     });
   }
 
@@ -418,7 +421,7 @@
           <div class="pv-price">${U.money(r.price)}</div>
           ${r.orig && r.orig > r.price ? `<div class="small"><span class="muted">Was ${U.money(r.orig)}</span> · <span class="warn strong">−${U.money(r.cum)} (${U.pct(r.cumPct)})</span></div>` : ''}
           <div class="pv-addr">${U.esc(r.street)}</div>
-          <div class="pv-loc">${U.esc(r.city)}, NJ ${U.esc(r.zip)}${r.county ? ' · ' + U.esc(r.county) + ' County' + (r.countyInferred ? ' (inferred)' : '') : ''}</div>
+          <div class="pv-loc">${U.esc(r.city)}, NJ ${U.esc(r.zip)}${r.county ? ' · ' + U.esc(r.county) + ' County' + (r.countyInferred ? ` <span class="muted" data-tip="County from the ${U.esc(L.countySrcLabel(r.countySrc))}; the MLS feed doesn't report it correctly for this listing." tabindex="0">(inferred)</span>` : '') : ''}</div>
         </div>
         ${reasons.length ? `<div><div class="eyebrow">Why it's here</div><ul class="reason-list">${reasons.map((x) => `<li>${U.icon('check')}${U.esc(x)}</li>`).join('')}</ul></div>` : ''}
         <dl class="kv" style="margin:0">

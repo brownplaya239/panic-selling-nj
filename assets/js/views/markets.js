@@ -187,14 +187,18 @@
 
     // Monthly charts
     if (to) {
-      const since = new Date(Date.now() - 365 * 86400000).toISOString().slice(0, 10);
+      // Whole months only: start on the 1st, 12 months back; the current month is
+      // labeled "to date" so a partial month never reads as a slowdown.
+      const now = new Date(), start = new Date(now.getFullYear(), now.getMonth() - 12, 1);
+      const ym = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+      const since = ym(start) + '-01', curYm = ym(now);
       q('mk:mlsm:' + town, () => App.fetchAll('listings', 'close_date,close_price', { order: 'close_date', asc: true, tiebreak: 'id', max: 6000,
         filter: (x) => x.eq('status', 'Closed').eq('city', town).gte('close_price', 50000).gte('close_date', since) }))
         .then((rows) => {
           const by = {};
           for (const r of rows) (by[r.close_date.slice(0, 7)] ??= []).push(r.close_price);
           const keys = Object.keys(by).sort();
-          UI.chart(U.$('#twMlsChart', el), { title: 'MLS closings by month, ' + town, labels: keys.map((k) => U.date(k + '-15', 'month')), bars: keys.map((k) => by[k].length),
+          UI.chart(U.$('#twMlsChart', el), { title: 'MLS closings by month, ' + town, labels: keys.map((k) => U.date(k + '-15', 'month') + (k === curYm ? ' (to date)' : '')), bars: keys.map((k) => by[k].length),
             line: keys.map((k) => (by[k].length >= 3 ? U.median(by[k]) : null)), barName: 'Closings', lineName: 'Median sale (months with 3+ sales)', height: 220 });
         }).catch(() => { U.$('#twMlsChart', el).innerHTML = UI.state('Chart unavailable', '', 'chart'); });
     }

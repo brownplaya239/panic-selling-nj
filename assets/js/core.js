@@ -242,6 +242,7 @@
       street: (src.address || '').split(',')[0],
       city: src.city || '',
       county: src.county && src.county !== 'Unknown' ? src.county : null,
+      countySrc: src.county && src.county !== 'Unknown' ? 'mls' : null,
       countyInferred: false,
       zip: src.zip || '',
       neighborhood: src.neighborhood && !/^(none|null)$/i.test(src.neighborhood) ? src.neighborhood : '',
@@ -271,22 +272,29 @@
   L.fetchByIds = async (ids) => {
     if (!ids.length) return [];
     const list = ids.map((i) => '"' + String(i).replace(/"/g, '') + '"').join(',');
-    const [a, d] = await Promise.all([
+    const [a, d, pr] = await Promise.all([
       App.sb.from('all_active_listings').select(LISTING_COLS).filter('listing_id', 'in', '(' + list + ')'),
       App.sb.from('active_drops').select(DROP_COLS).filter('listing_id', 'in', '(' + list + ')'),
+      App.prWindows().catch(() => []),
     ]);
     const dm = new Map((d.data || []).map((x) => [x.listing_id, x]));
     const out = (a.data || []).map((x) => normalize(x, dm.get(x.listing_id)));
     for (const x of d.data || []) if (!out.some((o) => o.id === x.listing_id)) out.push(normalize(null, x));
+    applyOfficial(out, pr);
+    for (const r of out) {
+      const full = L._data?.byId.get(r.id);
+      if (full && full.county) { r.county = full.county; r.countySrc = full.countySrc; r.countyInferred = full.countyInferred; }
+    }
     return out;
   };
 
   L.load = (force) => {
     if (force) App.invalidate('listings:');
     return App.cached('listings:all', async () => {
-      const [all, drops] = await Promise.all([
+      const [all, drops, pr] = await Promise.all([
         App.fetchAll('all_active_listings', LISTING_COLS, { order: 'days_on_market', tiebreak: 'listing_id' }),
         App.fetchAll('active_drops', DROP_COLS, { order: 'drop_dollar', tiebreak: 'listing_id' }),
+        App.prWindows().catch(() => []),
       ]);
       const dById = new Map(drops.map((d) => [d.listing_id, d]));
       const rows = [], byId = new Map();
@@ -296,25 +304,56 @@
         rows.push(r); byId.set(r.id, r);
       }
       for (const d of drops) if (!byId.has(d.listing_id)) { const r = normalize(null, d); rows.push(r); byId.set(r.id, r); }
-      inferCounties(rows);
-      return { rows, byId, fetchedAt: new Date().toISOString(), drops: drops.length };
+      resolveCounties(rows, pr);
+      L._data = { rows, byId, fetchedAt: new Date().toISOString(), drops: drops.length };
+      return L._data;
     }, 15 * 60 * 1000);
   };
 
-  // The feed omits county on roughly half of listings. When every listing that
-  // does report a county agrees for a given town, that county is applied to the
-  // town's unreported rows (flagged countyInferred so the UI can say so).
-  function inferCounties(rows) {
+  // County resolution. The feed omits county on about half of listings — whole
+  // towns at a time — and misreports it for some towns (every Howell listing
+  // says Ocean). Each listing's county comes from the first source that can
+  // answer, and countySrc records which one ('mls' = as reported):
+  //   1. the official municipality record, when the town name is unique in NJ
+  //      (this also corrects the feed where the two disagree)
+  //   2. the ZIP code, when every listing with a known county in it agrees
+  //   3. the 5 nearest listings with a known county, if all agree within 3 km
+  const COUNTY_SRC = { mls: 'MLS feed', municipality: 'official municipality record', zip: 'ZIP code', nearby: 'nearby listings' };
+  L.countySrcLabel = (s) => COUNTY_SRC[s] || COUNTY_SRC.mls;
+  function applyOfficial(rows, pr) {
     const m = new Map();
+    for (const x of pr) if (x.scope_type === 'muni') { const k = U.muniKey(x.scope_label); if (!m.has(k)) m.set(k, new Set()); m.get(k).add(x.county); }
     for (const r of rows) {
-      if (!r.county || !r.city) continue;
-      const k = U.norm(r.city);
-      const s = m.get(k) || new Set(); s.add(r.county); m.set(k, s);
+      const s = r.city ? m.get(U.muniKey(r.city)) : null;
+      const o = s && s.size === 1 ? [...s][0] : null;
+      if (o && r.county !== o) { r.county = o; r.countySrc = 'municipality'; r.countyInferred = true; }
     }
+  }
+  function resolveCounties(rows, pr) {
+    applyOfficial(rows, pr);
+    const zips = new Map();
+    for (const r of rows) if (r.county && r.zip) { if (!zips.has(r.zip)) zips.set(r.zip, new Set()); zips.get(r.zip).add(r.county); }
     for (const r of rows) {
-      if (r.county || !r.city) continue;
-      const s = m.get(U.norm(r.city));
-      if (s && s.size === 1) { r.county = [...s][0]; r.countyInferred = true; }
+      if (r.county || !r.zip) continue;
+      const s = zips.get(r.zip);
+      if (s && s.size === 1) { r.county = [...s][0]; r.countySrc = 'zip'; r.countyInferred = true; }
+    }
+    const refs = rows.filter((r) => r.county && r.lat != null && r.lng != null);
+    const K = 5, MAX_KM2 = 3 * 3;
+    for (const r of rows) {
+      if (r.county || r.lat == null || r.lng == null) continue;
+      const kx = 111.32 * Math.cos((r.lat * Math.PI) / 180), ky = 110.57;
+      const near = [];
+      for (const f of refs) {
+        const dx = (f.lng - r.lng) * kx, dy = (f.lat - r.lat) * ky, d2 = dx * dx + dy * dy;
+        if (near.length < K || d2 < near[near.length - 1][0]) {
+          near.push([d2, f.county]); near.sort((x, y) => x[0] - y[0]);
+          if (near.length > K) near.pop();
+        }
+      }
+      if (near.length === K && near[K - 1][0] <= MAX_KM2 && near.every((n) => n[1] === near[0][1])) {
+        r.county = near[0][1]; r.countySrc = 'nearby'; r.countyInferred = true;
+      }
     }
   }
 
@@ -538,7 +577,7 @@
     try {
       if (!App.views[key]) {
         host.innerHTML = `<div class="page"><div class="skel skel-line" style="width:220px;height:22px"></div><div class="skel skel-block" style="margin-top:20px"></div></div>`;
-        await U.loadScript('/assets/js/views/' + route.script + '.js?v=' + App.VERSION);
+        await U.loadScript('assets/js/views/' + route.script + '.js?v=' + App.VERSION);
       }
       const view = App.views[key];
       if (!view) throw new Error('View failed to register: ' + key);
@@ -607,7 +646,6 @@
       m.hidden = !open; b.setAttribute('aria-expanded', String(open));
       if (open && onOpen) onOpen(m);
     });
-    m.addEventListener('click', (e) => e.stopPropagation());
   }
 
   function initShell() {
@@ -623,7 +661,9 @@
     });
     toggleMenu('#acctBtn', '#acctMenu');
     toggleMenu('#notifBtn', '#notifMenu', (m) => App.notifications?.render(m));
-    document.addEventListener('click', () => closeMenus());
+    // Clicks inside a menu keep it open (theme/density toggles); links inside
+    // menus navigate, and the router closes all menus on navigation.
+    document.addEventListener('click', (e) => { if (!e.target.closest('.topbar .pop-wrap')) closeMenus(); });
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') { closeMenus(); document.documentElement.removeAttribute('data-nav'); }
       if (e.key === '/' && !/input|textarea|select/i.test(document.activeElement?.tagName) && !document.activeElement?.isContentEditable) {

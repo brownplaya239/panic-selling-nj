@@ -1,9 +1,14 @@
-# Skip Netlify builds when the deployable surface didn't change.
-# Exit 0 = skip build (saves credits); exit 1 = build.
-# Only index.html, assets/ (CSS/JS), and netlify/ (functions) affect the
-# deployed site — docs, poller, schema, and data scripts never need a rebuild.
+# Only what scripts/build.mjs copies into dist/ (index.html + assets/) is
+# published. Docs, data scripts, schema, and the poller must never be served.
 [build]
-  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- index.html assets/ netlify/"
+  command = "node scripts/build.mjs"
+  publish = "dist"
+  # Skip Netlify builds when the deployable surface didn't change.
+  # Exit 0 = skip build (saves credits); exit 1 = build.
+  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- index.html assets/ netlify/ scripts/build.mjs netlify.toml"
+
+[functions]
+  directory = "netlify/functions"
 
 # Asset URLs carry a ?v= version (index.html and App.VERSION in core.js), so
 # they can be cached indefinitely. Bump the version whenever assets change.

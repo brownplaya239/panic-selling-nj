@@ -29,8 +29,9 @@ MOMLS (njreindex.com, formerly momls.netlify.app) is a Monmouth & Ocean County r
 
 ## Operational notes
 
-- **DEPLOY APPROVAL RULE (user-set 2026-09-01): never `git push` without explicit user approval** — every push triggers a Netlify deploy that consumes credits. Commit locally, verify in the local preview, batch commits, push only on approval. netlify.toml skips builds unless index.html or netlify/ changed.
+- **DEPLOY APPROVAL RULE (user-set 2026-09-01): never `git push` without explicit user approval** — every push triggers a Netlify deploy that consumes credits. Commit locally, verify in the local preview, batch commits, push only on approval. netlify.toml skips builds unless index.html, assets/, netlify/, scripts/build.mjs, or netlify.toml changed.
 
+- **Local preview:** `node dev-server.mjs` (http://localhost:8788) serves the site plus the real `/api/comps` function using `.env`. **Publishing:** Netlify runs `node scripts/build.mjs` and publishes only `dist/` (index.html + assets/) — never add private files to that allowlist.
 - `.env` is required for poller/backfill (Spark token, Supabase service key, Resend) — never committed; copy it machine-to-machine via USB/password manager.
 - Claims are reviewed in Supabase → `profile_claims` → set `status='verified'` (badge appears on the profile).
 - The poller must run on *some* machine twice daily or data goes stale and alerts/snapshots stop.

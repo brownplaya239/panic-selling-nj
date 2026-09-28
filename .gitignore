@@ -30,3 +30,6 @@ poll.log
 
 # NJ public-records raw files (100MB+ — re-download from nj.gov)
 data-public/
+
+# Build output (scripts/build.mjs)
+dist/
