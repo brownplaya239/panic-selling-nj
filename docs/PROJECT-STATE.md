@@ -7,7 +7,7 @@
 MOMLS (njreindex.com, formerly momls.netlify.app) is a Monmouth & Ocean County real-estate intelligence site built on a MORMLS/Spark IDX feed:
 
 - **Pipeline**: `poller.js` (6 AM / 8 PM ET) ingests actives + recent pending/closed via price-bucketed fetch (Spark's cursor pagination is unreliable — see docs/DATA-DICTIONARY.md for every feed quirk), detects price cuts, records status transitions, refreshes materialized frontend views, rescores deals, sends alert emails (Resend), snapshots leaderboards monthly.
-- **Surfaces** (all in `index.html`): Price Drops · All Active · Sold Comps (Netlify function `/api/comps`) · Best Towns · Deal Screener · Recent Sales tape · Market Leaderboards — cross-linked with context-carrying jumps and deep links (`?lb=a:ID`).
+- **Frontend (redesigned 2026-09-28, see docs/REDESIGN-2026-09.md)**: `index.html` shell + `assets/css/app.css` design system + `assets/js/core.js` (data layer, router, search) + `assets/js/ui.js` (components) + one lazily loaded file per route in `assets/js/views/`. Routes: Dashboard · Listings & Price Drops · Sales Tape · Property Intelligence · Comparables (Netlify function `/api/comps`) · Deal Screener · Town & County Analytics · NJ Public Records · Rankings · Saved/Alerts/Reports. All state is in the URL; legacy `?lb=` and `?unsub=` links still work. **Asset version rule:** bump `App.VERSION` in core.js and the `?v=` strings in index.html whenever assets change (assets are cached for a year).
 - **Self-compounding loops**: deal predictions grade themselves against closings (`prediction_outcomes`); closed-sale attribution accrues to leaderboards; 20K+ backfilled closings (`backfill-sales.js`).
 
 ## Frozen decisions — do not change without cause

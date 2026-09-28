@@ -1,6 +1,13 @@
 # Skip Netlify builds when the deployable surface didn't change.
 # Exit 0 = skip build (saves credits); exit 1 = build.
-# Only index.html and netlify/ (functions) affect the deployed site —
-# docs, poller, schema, and data scripts never need a rebuild.
+# Only index.html, assets/ (CSS/JS), and netlify/ (functions) affect the
+# deployed site — docs, poller, schema, and data scripts never need a rebuild.
 [build]
-  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- index.html netlify/"
+  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- index.html assets/ netlify/"
+
+# Asset URLs carry a ?v= version (index.html and App.VERSION in core.js), so
+# they can be cached indefinitely. Bump the version whenever assets change.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
